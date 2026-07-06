@@ -1,0 +1,39 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Item {
+  id        String   @id @default(uuid())
+  name      String
+  category  String // TOP | BOTTOM | OUTERWEAR | SHOES — validated in app code (SQLite has no enums)
+  subtype   String // "t-shirt", "dress shirt", "shorts", "chinos"
+  color     String?
+  imagePath String? // uploaded file path/URL (optional until a photo is added)
+  sourceUrl String? // store link, for v2 auto-image import
+  notes     String?
+  createdAt DateTime @default(now())
+
+  pairingsA Pairing[] @relation("ItemA")
+  pairingsB Pairing[] @relation("ItemB")
+}
+
+model Pairing {
+  id      String @id @default(uuid())
+  itemA   Item   @relation("ItemA", fields: [itemAId], references: [id], onDelete: Cascade)
+  itemAId String
+  itemB   Item   @relation("ItemB", fields: [itemBId], references: [id], onDelete: Cascade)
+  itemBId String
+  tier    Int // 1 = best match, up to 3
+
+  @@unique([itemAId, itemBId]) // a pair is stored once
+}
