@@ -8,14 +8,16 @@ export type ItemFilters = {
   sort?: string; // "newest" (default) | "name" | "most-paired"
   favorite?: boolean;
   unpaired?: boolean;
+  collectionId?: string | null; // scope to a collection's items
 };
 
 /** Items for the closet, with optional search / filters / sort. */
 export async function getItems(filters: ItemFilters = {}) {
-  const { category, q, sort, favorite, unpaired } = filters;
+  const { category, q, sort, favorite, unpaired, collectionId } = filters;
 
   const where: Prisma.ItemWhereInput = {};
   if (isCategory(category)) where.category = category;
+  if (collectionId) where.collections = { some: { collectionId } };
   if (favorite) where.favorite = true;
   if (unpaired) {
     where.pairingsA = { none: {} };

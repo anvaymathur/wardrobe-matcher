@@ -24,9 +24,10 @@ model Item {
   favorite  Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  pairingsA Pairing[]    @relation("ItemA")
-  pairingsB Pairing[]    @relation("ItemB")
-  outfits   OutfitItem[]
+  pairingsA   Pairing[]        @relation("ItemA")
+  pairingsB   Pairing[]        @relation("ItemB")
+  outfits     OutfitItem[]
+  collections CollectionItem[]
 }
 
 model Pairing {
@@ -57,4 +58,23 @@ model OutfitItem {
   itemId   String
 
   @@unique([outfitId, itemId]) // an item appears once per outfit
+}
+
+// A named subset of the wardrobe (e.g. "Japan Trip") that the closet, shuffle,
+// and outfit-building can be scoped to.
+model Collection {
+  id        String           @id @default(uuid())
+  name      String
+  createdAt DateTime         @default(now())
+  items     CollectionItem[]
+}
+
+model CollectionItem {
+  id           String     @id @default(uuid())
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  collectionId String
+  item         Item       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId       String
+
+  @@unique([collectionId, itemId]) // an item appears once per collection
 }

@@ -2,7 +2,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { getItems, getUnpairedCount } from "@/lib/items";
+import { getActiveCollectionId, getCollections } from "@/lib/collections";
 import { ClosetControls } from "@/app/_components/ClosetControls";
+import { CollectionSelector } from "@/app/_components/CollectionSelector";
 import { ItemCard } from "@/app/_components/ItemCard";
 import { FavoriteButton } from "@/app/_components/FavoriteButton";
 import { DeleteItemButton } from "@/app/_components/DeleteItemButton";
@@ -24,20 +26,25 @@ export default async function ClosetPage({
   }>;
 }) {
   const sp = await searchParams;
+  const activeCollectionId = await getActiveCollectionId();
   const filters = {
     category: sp.category,
     q: sp.q,
     sort: sp.sort,
     favorite: sp.favorite === "1",
     unpaired: sp.unpaired === "1",
+    collectionId: activeCollectionId,
   };
 
-  const [items, unpairedCount, jar] = await Promise.all([
+  const [items, unpairedCount, jar, collections] = await Promise.all([
     getItems(filters),
     getUnpairedCount(),
     cookies(),
+    getCollections(),
   ]);
-  const filtering = Boolean(sp.category || sp.q || sp.favorite || sp.unpaired);
+  const filtering = Boolean(
+    sp.category || sp.q || sp.favorite || sp.unpaired || activeCollectionId,
+  );
   const swipeLeft = asAction(jar.get("swipeLeft")?.value, "none");
   const swipeRight = asAction(jar.get("swipeRight")?.value, "favorite");
 
@@ -51,6 +58,10 @@ export default async function ClosetPage({
         >
           + Add item
         </Link>
+      </div>
+
+      <div className="mb-4">
+        <CollectionSelector collections={collections} activeId={activeCollectionId} />
       </div>
 
       <div className="mb-6">

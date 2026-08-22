@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { saveImage, deleteImage } from "@/lib/storage";
 import { isCategory, isValidTier } from "@/lib/types";
@@ -188,4 +189,57 @@ export async function deleteOutfit(formData: FormData) {
 
   revalidatePath("/outfits");
   redirect("/outfits");
+}
+
+const COLLECTION_COOKIE = "collection";
+
+export async function createCollection(formData: FormData) {
+  const name = text(formData, "name");
+  const itemIds = selectedItemIds(formData);
+  if (!name) throw new Error("Give the collection a name");
+  if (itemIds.length === 0) throw new Error("Pick at least one item");
+
+  const collection = await prisma.collection.create({
+    data: { name, items: { create: itemIds.map((itemId) => ({ itemId })) } },
+  });
+
+  // Creating a collection makes it the active one.
+  (await cookies()).set(COLLECTION_COOKIE, collection.id, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+  revalidatePath("/");
+  redirect("/");
+}
+
+export async function updateCollection(formData: FormData) {
+  const id = text(formData, "id");
+  const name = text(formData, "name");
+  const itemIds = selectedItemIds(formData);
+  if (!id) throw new Error("Missing collection id");
+  if (!name) throw new Error("Give the collection a name");
+  if (itemIds.length === 0) throw new Error("Pick at least one item");
+
+  await prisma.collectionItem.deleteMany({ where: { collectionId: id } });
+  await prisma.collection.update({
+    where: { id },
+    data: { name, items: { create: itemIds.map((itemId) => ({ itemId })) } },
+  });
+
+  revalidatePath("/");
+  redirect("/");
+}
+
+export async function deleteCollection(formData: FormData) {
+  const id = text(formData, "id");
+  if (!id) throw new Error("Missing collection id");
+
+  await prisma.collection.delete({ where: { id } }); // cascades to CollectionItem
+
+  const jar = await cookies();
+  if (jar.get(COLLECTION_COOKIE)?.value === id) jar.delete(COLLECTION_COOKIE);
+
+  revalidatePath("/");
+  redirect("/");
 }
