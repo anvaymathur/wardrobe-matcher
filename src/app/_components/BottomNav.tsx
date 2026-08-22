@@ -15,7 +15,7 @@ export function BottomNav() {
 
   return (
     <>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/10 bg-background/95 backdrop-blur sm:hidden dark:border-white/15">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/10 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden dark:border-white/15">
         <div className="flex items-stretch">
           {tabs.map((t) => {
             const isActive = t.active(pathname);
@@ -35,11 +35,11 @@ export function BottomNav() {
         </div>
       </nav>
 
-      {/* Thumb-reachable add button (mobile only). */}
+      {/* Thumb-reachable add button (mobile only), sitting above the tab bar. */}
       <Link
         href="/items/new"
         aria-label="Add item"
-        className="fixed bottom-16 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-3xl leading-none text-background shadow-lg sm:hidden"
+        className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-3xl leading-none text-background shadow-lg sm:hidden"
       >
         +
       </Link>

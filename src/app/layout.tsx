@@ -25,6 +25,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#111827",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -37,9 +38,11 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        <SiteHeader gated={Boolean(process.env.APP_PASSWORD)} />
-        <main className="flex-1 pb-24 sm:pb-0">{children}</main>
+      <body className="min-h-full flex flex-col overflow-x-hidden" suppressHydrationWarning>
+        <SiteHeader />
+        <main className="flex-1 pb-24 pt-[env(safe-area-inset-top)] sm:pb-0 sm:pt-0">
+          {children}
+        </main>
         <BottomNav />
       </body>
     </html>
