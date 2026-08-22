@@ -23,8 +23,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Run on everything except Next internals, the favicon, local uploads, and images.
+  // Run on everything except Next internals, the favicon, the PWA manifest,
+  // local uploads, and images (all of which must be reachable without auth).
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|uploads|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico)).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|uploads|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico)).*)",
   ],
 };
