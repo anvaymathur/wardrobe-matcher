@@ -23,8 +23,11 @@ export function SiteHeader() {
           <Link href="/outfits" className="rounded-md px-2 py-1.5 hover:text-foreground">
             Outfits
           </Link>
-          <Link href="/builder" className="rounded-md px-2 py-1.5 hover:text-foreground">
-            Builder
+          <Link href="/shuffle" className="rounded-md px-2 py-1.5 hover:text-foreground">
+            Shuffle
+          </Link>
+          <Link href="/settings" className="rounded-md px-2 py-1.5 hover:text-foreground">
+            Settings
           </Link>
         </nav>
       </div>

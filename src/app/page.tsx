@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import { getItems, getUnpairedCount } from "@/lib/items";
 import { ClosetControls } from "@/app/_components/ClosetControls";
 import { ItemCard } from "@/app/_components/ItemCard";
 import { FavoriteButton } from "@/app/_components/FavoriteButton";
 import { DeleteItemButton } from "@/app/_components/DeleteItemButton";
+import { SwipeableItemCard, type SwipeAction } from "@/app/_components/SwipeableItemCard";
+
+const SWIPE_ACTIONS = new Set(["none", "favorite", "edit", "delete"]);
+const asAction = (v: string | undefined, fallback: SwipeAction): SwipeAction =>
+  v && SWIPE_ACTIONS.has(v) ? (v as SwipeAction) : fallback;
 
 export default async function ClosetPage({
   searchParams,
@@ -26,8 +32,14 @@ export default async function ClosetPage({
     unpaired: sp.unpaired === "1",
   };
 
-  const [items, unpairedCount] = await Promise.all([getItems(filters), getUnpairedCount()]);
+  const [items, unpairedCount, jar] = await Promise.all([
+    getItems(filters),
+    getUnpairedCount(),
+    cookies(),
+  ]);
   const filtering = Boolean(sp.category || sp.q || sp.favorite || sp.unpaired);
+  const swipeLeft = asAction(jar.get("swipeLeft")?.value, "none");
+  const swipeRight = asAction(jar.get("swipeRight")?.value, "favorite");
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
@@ -57,21 +69,28 @@ export default async function ClosetPage({
         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {items.map((item) => (
             <li key={item.id}>
-              <ItemCard
-                item={item}
-                overlay={<FavoriteButton id={item.id} favorite={item.favorite} />}
-                footer={
-                  <>
-                    <Link
-                      href={`/items/${item.id}/edit`}
-                      className="-ml-1 rounded px-1 py-1 text-sm font-medium text-black/60 hover:underline dark:text-white/60"
-                    >
-                      Edit
-                    </Link>
-                    <DeleteItemButton id={item.id} name={item.name} />
-                  </>
-                }
-              />
+              <SwipeableItemCard
+                id={item.id}
+                name={item.name}
+                leftAction={swipeLeft}
+                rightAction={swipeRight}
+              >
+                <ItemCard
+                  item={item}
+                  overlay={<FavoriteButton id={item.id} favorite={item.favorite} />}
+                  footer={
+                    <>
+                      <Link
+                        href={`/items/${item.id}/edit`}
+                        className="-ml-1 rounded px-1 py-1 text-sm font-medium text-black/60 hover:underline dark:text-white/60"
+                      >
+                        Edit
+                      </Link>
+                      <DeleteItemButton id={item.id} name={item.name} />
+                    </>
+                  }
+                />
+              </SwipeableItemCard>
             </li>
           ))}
         </ul>

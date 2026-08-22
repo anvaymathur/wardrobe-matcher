@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 const tabs = [
   { href: "/", label: "Closet", icon: "👕", active: (p: string) => p === "/" || p.startsWith("/items") },
   { href: "/outfits", label: "Outfits", icon: "🧥", active: (p: string) => p.startsWith("/outfits") },
-  { href: "/builder", label: "Builder", icon: "✨", active: (p: string) => p.startsWith("/builder") },
+  { href: "/shuffle", label: "Shuffle", icon: "🎲", active: (p: string) => p.startsWith("/shuffle") || p.startsWith("/builder") },
+  { href: "/settings", label: "Settings", icon: "⚙️", active: (p: string) => p.startsWith("/settings") },
 ];
 
 export function BottomNav() {

@@ -19,6 +19,13 @@ export async function getPairingsForItem(itemId: string) {
   }));
 }
 
+/** Every pairing as flat {itemAId, itemBId, tier} rows — used by the shuffler. */
+export function getAllPairings() {
+  return prisma.pairing.findMany({
+    select: { itemAId: true, itemBId: true, tier: true },
+  });
+}
+
 /**
  * Candidates for a new match: items in a *different* category (you pair a top
  * with a bottom, not another top) that aren't already matched with this item.
