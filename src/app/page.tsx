@@ -12,7 +12,7 @@ export default async function ClosetPage({
   const items = await getItems(category);
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-8">
+    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-6 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Closet</h1>
         <Link
@@ -65,7 +65,7 @@ export default async function ClosetPage({
                 <div className="mt-auto flex items-center justify-between pt-2">
                   <Link
                     href={`/items/${item.id}/edit`}
-                    className="text-xs font-medium text-black/60 hover:underline dark:text-white/60"
+                    className="-ml-1 rounded px-1 py-1 text-sm font-medium text-black/60 hover:underline dark:text-white/60"
                   >
                     Edit
                   </Link>

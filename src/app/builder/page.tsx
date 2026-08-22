@@ -20,7 +20,7 @@ export default async function BuilderPage({
   const tiers = Array.from({ length: MAX_TIER - MIN_TIER + 1 }, (_, i) => MIN_TIER + i);
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-8">
+    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
       <h1 className="text-2xl font-semibold tracking-tight">Outfit builder</h1>
       <p className="mt-1 text-sm text-black/60 dark:text-white/60">
         Pick an item to see everything it pairs with, best matches first.

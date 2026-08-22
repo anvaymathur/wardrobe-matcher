@@ -26,3 +26,22 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* On mobile, iOS Safari zooms in when focusing a field smaller than 16px.
+   Force form controls to 16px on small screens to stop that jump. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Comfortable tap targets: links/buttons should be easy to hit on touch. */
+@media (pointer: coarse) {
+  a,
+  button,
+  [role="button"] {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.08);
+  }
+}

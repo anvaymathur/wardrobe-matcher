@@ -10,7 +10,7 @@ const tiers = Array.from({ length: MAX_TIER - MIN_TIER + 1 }, (_, i) => MIN_TIER
 const tierLabel = (t: number) => (t === 1 ? "Tier 1 · best" : `Tier ${t}`);
 
 const selectClass =
-  "rounded-md border border-black/15 bg-background text-foreground px-3 py-2 text-sm outline-none focus:border-foreground dark:border-white/20";
+  "w-full rounded-md border border-black/15 bg-background text-foreground px-3 py-2.5 text-sm outline-none focus:border-foreground sm:w-auto dark:border-white/20";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -18,7 +18,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+      className="w-full rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50 sm:w-auto"
     >
       {pending ? "Adding…" : "Add match"}
     </button>
@@ -42,7 +42,10 @@ export function AddMatchForm({
   }
 
   return (
-    <form action={createPairing} className="flex flex-wrap items-end gap-3">
+    <form
+      action={createPairing}
+      className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+    >
       <input type="hidden" name="itemId" value={itemId} />
 
       <label className="flex flex-col gap-1.5 text-sm font-medium">

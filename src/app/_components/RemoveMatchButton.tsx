@@ -23,7 +23,7 @@ export function RemoveMatchButton({
       <button
         type="submit"
         aria-label={`Remove match with ${otherName}`}
-        className="text-xs font-medium text-red-600 hover:underline dark:text-red-400"
+        className="rounded px-2 py-1.5 text-sm font-medium text-red-600 hover:underline dark:text-red-400"
       >
         Remove
       </button>

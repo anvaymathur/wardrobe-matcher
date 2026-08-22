@@ -25,8 +25,8 @@ export default async function ItemDetailPage({
   const tiers = Array.from({ length: MAX_TIER - MIN_TIER + 1 }, (_, i) => MIN_TIER + i);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-8">
-      <Link href="/" className="text-sm text-black/50 hover:underline dark:text-white/50">
+    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+      <Link href="/" className="inline-block py-1 text-sm text-black/50 hover:underline dark:text-white/50">
         ← Back to closet
       </Link>
 

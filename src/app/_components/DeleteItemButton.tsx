@@ -14,7 +14,7 @@ export function DeleteItemButton({ id, name }: { id: string; name: string }) {
       <button
         type="submit"
         aria-label={`Delete ${name}`}
-        className="text-xs font-medium text-red-600 hover:underline dark:text-red-400"
+        className="-mr-1 rounded px-1 py-1 text-sm font-medium text-red-600 hover:underline dark:text-red-400"
       >
         Delete
       </button>

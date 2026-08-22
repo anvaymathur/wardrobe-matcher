@@ -25,7 +25,7 @@ function SubmitButton({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+      className="w-full rounded-full bg-foreground px-5 py-3 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50 sm:w-auto"
     >
       {pending ? "Saving…" : label}
     </button>
@@ -94,18 +94,26 @@ function ImageField({ initialImagePath }: { initialImagePath?: string | null }) 
     [],
   );
 
-  const isNewPick = preview !== null && preview === objectUrlRef.current;
+  const showClear = preview !== null && preview !== (initialImagePath ?? null);
+  const openPicker = () => fileInputRef.current?.click();
 
   return (
     <div className={labelClass}>
       <span>
-        Photo{" "}
-        <span className="font-normal text-black/50 dark:text-white/50">
-          — paste (Ctrl/Cmd+V), drag, or choose a file
-        </span>
+        Photo <span className="font-normal text-black/50 dark:text-white/50">(optional)</span>
       </span>
 
+      {/* The whole box is tappable — on a phone this opens the camera or photo library. */}
       <div
+        role="button"
+        tabIndex={0}
+        onClick={openPicker}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            openPicker();
+          }
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -116,8 +124,10 @@ function ImageField({ initialImagePath }: { initialImagePath?: string | null }) 
           setDragging(false);
           applyFile(e.dataTransfer.files?.[0]);
         }}
-        className={`flex items-center gap-4 rounded-md border border-dashed p-3 transition-colors ${
-          dragging ? "border-foreground bg-black/5 dark:bg-white/10" : "border-black/20 dark:border-white/25"
+        className={`flex cursor-pointer items-center gap-4 rounded-md border border-dashed p-3 transition-colors ${
+          dragging
+            ? "border-foreground bg-black/5 dark:bg-white/10"
+            : "border-black/20 hover:border-foreground dark:border-white/25"
         }`}
       >
         {preview ? (
@@ -129,28 +139,23 @@ function ImageField({ initialImagePath }: { initialImagePath?: string | null }) 
           </div>
         )}
 
-        <div className="flex flex-col items-start gap-1.5 text-xs">
-          <span className="text-black/50 dark:text-white/50">
-            Paste an image, drop one here, or
+        <div className="flex flex-col items-start gap-1">
+          <span className="text-sm font-medium">{preview ? "Change photo" : "Add a photo"}</span>
+          <span className="text-xs text-black/50 dark:text-white/50">
+            Tap to take a photo or pick one. On a computer you can also paste or drag an image.
           </span>
-          <div className="flex items-center gap-3">
+          {showClear && (
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="rounded-full border border-black/20 px-3 py-1 font-medium hover:border-foreground dark:border-white/25"
+              onClick={(e) => {
+                e.stopPropagation();
+                clear();
+              }}
+              className="mt-1 rounded px-1 py-0.5 text-xs font-medium text-red-600 hover:underline dark:text-red-400"
             >
-              Choose file
+              Clear
             </button>
-            {(isNewPick || (preview && preview !== (initialImagePath ?? null))) && (
-              <button
-                type="button"
-                onClick={clear}
-                className="font-medium text-red-600 hover:underline dark:text-red-400"
-              >
-                Clear
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
