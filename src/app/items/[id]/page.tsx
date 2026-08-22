@@ -5,6 +5,7 @@ import { getPairingsForItem, getCandidateItems } from "@/lib/pairings";
 import { MIN_TIER, MAX_TIER } from "@/lib/types";
 import { AddMatchForm } from "@/app/_components/AddMatchForm";
 import { RemoveMatchButton } from "@/app/_components/RemoveMatchButton";
+import { FavoriteButton } from "@/app/_components/FavoriteButton";
 
 const tierLabel = (t: number) => (t === 1 ? "Tier 1 · best match" : `Tier ${t}`);
 
@@ -31,7 +32,7 @@ export default async function ItemDetailPage({
       </Link>
 
       <div className="mt-4 flex flex-col gap-6 sm:flex-row">
-        <div className="h-48 w-48 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
+        <div className="relative h-48 w-48 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
           {item.imagePath ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={item.imagePath} alt={item.name} className="h-full w-full object-cover" />
@@ -40,6 +41,9 @@ export default async function ItemDetailPage({
               No photo
             </div>
           )}
+          <div className="absolute right-2 top-2">
+            <FavoriteButton id={item.id} favorite={item.favorite} />
+          </div>
         </div>
 
         <div className="flex flex-col gap-1">

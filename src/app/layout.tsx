@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/app/_components/SiteHeader";
+import { BottomNav } from "@/app/_components/BottomNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,11 +17,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Wardrobe Matcher",
   description: "Catalog your clothes and track which items pair well together.",
+  appleWebApp: { capable: true, title: "Wardrobe", statusBarStyle: "default" },
+  icons: { apple: "/apple-icon.png" },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#111827",
 };
 
 export default function RootLayout({
@@ -35,7 +39,8 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <SiteHeader gated={Boolean(process.env.APP_PASSWORD)} />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 pb-24 sm:pb-0">{children}</main>
+        <BottomNav />
       </body>
     </html>
   );

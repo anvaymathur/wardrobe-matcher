@@ -20,6 +20,9 @@ export function SiteHeader({ gated }: { gated: boolean }) {
           <Link href="/" className="rounded-md px-2 py-1.5 hover:text-foreground">
             Closet
           </Link>
+          <Link href="/outfits" className="rounded-md px-2 py-1.5 hover:text-foreground">
+            Outfits
+          </Link>
           <Link href="/builder" className="rounded-md px-2 py-1.5 hover:text-foreground">
             Builder
           </Link>

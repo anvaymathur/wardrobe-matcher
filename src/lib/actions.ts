@@ -120,3 +120,72 @@ export async function deletePairing(formData: FormData) {
 
   if (itemId) revalidatePath(`/items/${itemId}`);
 }
+
+export async function toggleFavorite(formData: FormData) {
+  const id = text(formData, "id");
+  if (!id) throw new Error("Missing item id");
+
+  const item = await prisma.item.findUnique({ where: { id }, select: { favorite: true } });
+  if (!item) throw new Error("Item not found");
+
+  await prisma.item.update({ where: { id }, data: { favorite: !item.favorite } });
+
+  revalidatePath("/");
+  revalidatePath(`/items/${id}`);
+}
+
+function selectedItemIds(formData: FormData): string[] {
+  return formData.getAll("itemId").map(String).filter(Boolean);
+}
+
+export async function createOutfit(formData: FormData) {
+  const name = text(formData, "name");
+  const itemIds = selectedItemIds(formData);
+  if (!name) throw new Error("Give the outfit a name");
+  if (itemIds.length === 0) throw new Error("Pick at least one item");
+
+  const outfit = await prisma.outfit.create({
+    data: {
+      name,
+      notes: text(formData, "notes") || null,
+      items: { create: itemIds.map((itemId) => ({ itemId })) },
+    },
+  });
+
+  revalidatePath("/outfits");
+  redirect(`/outfits/${outfit.id}`);
+}
+
+export async function updateOutfit(formData: FormData) {
+  const id = text(formData, "id");
+  const name = text(formData, "name");
+  const itemIds = selectedItemIds(formData);
+  if (!id) throw new Error("Missing outfit id");
+  if (!name) throw new Error("Give the outfit a name");
+  if (itemIds.length === 0) throw new Error("Pick at least one item");
+
+  // Replace the item set wholesale — simplest and reliable.
+  await prisma.outfitItem.deleteMany({ where: { outfitId: id } });
+  await prisma.outfit.update({
+    where: { id },
+    data: {
+      name,
+      notes: text(formData, "notes") || null,
+      items: { create: itemIds.map((itemId) => ({ itemId })) },
+    },
+  });
+
+  revalidatePath("/outfits");
+  revalidatePath(`/outfits/${id}`);
+  redirect(`/outfits/${id}`);
+}
+
+export async function deleteOutfit(formData: FormData) {
+  const id = text(formData, "id");
+  if (!id) throw new Error("Missing outfit id");
+
+  await prisma.outfit.delete({ where: { id } }); // cascades to OutfitItem
+
+  revalidatePath("/outfits");
+  redirect("/outfits");
+}

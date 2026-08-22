@@ -1,14 +1,58 @@
 import { prisma } from "@/lib/prisma";
 import { isCategory } from "@/lib/types";
+import type { Prisma } from "@/generated/prisma/client";
 
-/** All items, newest first, optionally filtered to a single category. */
-export async function getItems(category?: string) {
-  return prisma.item.findMany({
-    where: isCategory(category) ? { category } : undefined,
-    orderBy: { createdAt: "desc" },
+export type ItemFilters = {
+  category?: string;
+  q?: string;
+  sort?: string; // "newest" (default) | "name" | "most-paired"
+  favorite?: boolean;
+  unpaired?: boolean;
+};
+
+/** Items for the closet, with optional search / filters / sort. */
+export async function getItems(filters: ItemFilters = {}) {
+  const { category, q, sort, favorite, unpaired } = filters;
+
+  const where: Prisma.ItemWhereInput = {};
+  if (isCategory(category)) where.category = category;
+  if (favorite) where.favorite = true;
+  if (unpaired) {
+    where.pairingsA = { none: {} };
+    where.pairingsB = { none: {} };
+  }
+  const term = q?.trim();
+  if (term) {
+    // SQLite LIKE is case-insensitive for ASCII, which is fine here.
+    where.OR = [
+      { name: { contains: term } },
+      { subtype: { contains: term } },
+      { color: { contains: term } },
+    ];
+  }
+
+  const items = await prisma.item.findMany({
+    where,
+    orderBy: sort === "name" ? { name: "asc" } : { createdAt: "desc" },
+    include: { _count: { select: { pairingsA: true, pairingsB: true } } },
   });
+
+  if (sort === "most-paired") {
+    const count = (i: (typeof items)[number]) => i._count.pairingsA + i._count.pairingsB;
+    return [...items].sort((a, b) => count(b) - count(a) || a.name.localeCompare(b.name));
+  }
+  return items;
 }
 
-export async function getItem(id: string) {
+export type ClosetItem = Awaited<ReturnType<typeof getItems>>[number];
+
+export function getItem(id: string) {
   return prisma.item.findUnique({ where: { id } });
+}
+
+/** How many items have no pairings at all — used for the "Unpaired" nudge. */
+export function getUnpairedCount() {
+  return prisma.item.count({
+    where: { pairingsA: { none: {} }, pairingsB: { none: {} } },
+  });
 }
