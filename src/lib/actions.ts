@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/currentUser";
 import { deleteImage } from "@/lib/storage";
 import { isCategory, isValidTier } from "@/lib/types";
+import { isValidKey, weekStartKey } from "@/lib/planner";
 
 function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -342,4 +343,62 @@ export async function deleteCollection(formData: FormData) {
 
   revalidatePath("/");
   redirect("/");
+}
+
+// ── Weekly planner ────────────────────────────────────────────────────────────
+
+/** Set (or clear) what's planned for a given day. An empty selection clears it. */
+export async function setPlannedDay(formData: FormData) {
+  const date = text(formData, "date");
+  if (!isValidKey(date)) throw new Error("Invalid date");
+  const userId = await requireUserId();
+  const itemIds = await ownedItemIds(userId, selectedItemIds(formData));
+
+  if (itemIds.length === 0) {
+    await prisma.plannedDay.deleteMany({ where: { userId, date } });
+  } else {
+    const day = await prisma.plannedDay.upsert({
+      where: { userId_date: { userId, date } },
+      create: { userId, date },
+      update: {},
+    });
+    await prisma.plannedDayItem.deleteMany({ where: { plannedDayId: day.id } });
+    await prisma.plannedDayItem.createMany({
+      data: itemIds.map((itemId) => ({ plannedDayId: day.id, itemId })),
+    });
+  }
+
+  revalidatePath("/week");
+  redirect(`/week?start=${weekStartKey(date)}`);
+}
+
+/** Remove a day's plan (the "Clear" button on the week view). */
+export async function clearPlannedDay(formData: FormData) {
+  const date = text(formData, "date");
+  if (!isValidKey(date)) throw new Error("Invalid date");
+  const userId = await requireUserId();
+
+  await prisma.plannedDay.deleteMany({ where: { userId, date } });
+  revalidatePath("/week");
+}
+
+/** Save a planned day's items to the Outfits tab as a reusable named outfit. */
+export async function savePlannedDayAsOutfit(formData: FormData) {
+  const date = text(formData, "date");
+  if (!isValidKey(date)) throw new Error("Invalid date");
+  const userId = await requireUserId();
+
+  const day = await prisma.plannedDay.findUnique({
+    where: { userId_date: { userId, date } },
+    include: { items: true },
+  });
+  if (!day || day.items.length === 0) throw new Error("Nothing planned to save");
+
+  const name = text(formData, "name") || `Plan for ${date}`;
+  await prisma.outfit.create({
+    data: { name, userId, items: { create: day.items.map((i) => ({ itemId: i.itemId })) } },
+  });
+
+  revalidatePath("/outfits");
+  redirect("/outfits");
 }

@@ -20,6 +20,9 @@ export function SiteHeader() {
           <Link href="/" className="rounded-md px-2 py-1.5 hover:text-foreground">
             Closet
           </Link>
+          <Link href="/week" className="rounded-md px-2 py-1.5 hover:text-foreground">
+            Week
+          </Link>
           <Link href="/outfits" className="rounded-md px-2 py-1.5 hover:text-foreground">
             Outfits
           </Link>

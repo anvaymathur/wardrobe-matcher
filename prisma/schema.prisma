@@ -22,6 +22,7 @@ model User {
   pairings    Pairing[]
   outfits     Outfit[]
   collections Collection[]
+  plannedDays PlannedDay[]
 }
 
 model Item {
@@ -44,6 +45,7 @@ model Item {
   pairingsB   Pairing[]        @relation("ItemB")
   outfits     OutfitItem[]
   collections CollectionItem[]
+  plannedDays PlannedDayItem[]
 
   @@index([userId])
 }
@@ -109,4 +111,29 @@ model CollectionItem {
   itemId       String
 
   @@unique([collectionId, itemId]) // an item appears once per collection
+}
+
+// A day in the weekly planner: what you plan to wear on a given date. The date
+// is a plain "YYYY-MM-DD" calendar day (timezone-free); one plan per day.
+model PlannedDay {
+  id        String           @id @default(uuid())
+  date      String
+  createdAt DateTime         @default(now())
+  items     PlannedDayItem[]
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+model PlannedDayItem {
+  id           String     @id @default(uuid())
+  plannedDay   PlannedDay @relation(fields: [plannedDayId], references: [id], onDelete: Cascade)
+  plannedDayId String
+  item         Item       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId       String
+
+  @@unique([plannedDayId, itemId]) // an item appears once per day
 }
