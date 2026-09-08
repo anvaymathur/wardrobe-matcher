@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/currentUser";
-import { saveImage, deleteImage } from "@/lib/storage";
+import { deleteImage } from "@/lib/storage";
 import { isCategory, isValidTier } from "@/lib/types";
 
 function text(formData: FormData, key: string): string {
@@ -23,6 +23,25 @@ function reason(err: unknown, fallback: string): string {
 
 function selectedItemIds(formData: FormData): string[] {
   return formData.getAll("itemId").map(String).filter(Boolean);
+}
+
+/** The photo is uploaded to Blob from the browser; the action receives only its
+ * URL. Accept it only if it points at our Blob store, so a crafted request can't
+ * make an item render an arbitrary/hostile URL. */
+function readImageUrl(
+  formData: FormData,
+): { ok: true; url: string | null } | { ok: false; error: string } {
+  const url = text(formData, "imageUrl");
+  if (!url) return { ok: true, url: null };
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:" && parsed.hostname.endsWith(".blob.vercel-storage.com")) {
+      return { ok: true, url };
+    }
+  } catch {
+    // fall through
+  }
+  return { ok: false, error: "That image couldn't be attached" };
 }
 
 /** Narrow a list of item ids to the ones actually owned by the user. */
@@ -91,13 +110,14 @@ export async function createItem(formData: FormData): Promise<ItemActionResult> 
   const parsed = readItemFields(formData);
   if (!parsed.ok) return { error: parsed.error };
 
+  const img = readImageUrl(formData);
+  if (!img.ok) return { error: img.error };
+
   try {
     const userId = await requireUserId();
-    const image = formData.get("image");
-    const imagePath =
-      image instanceof File && image.size > 0 ? await saveImage(image) : null;
-
-    const item = await prisma.item.create({ data: { ...parsed.fields, imagePath, userId } });
+    const item = await prisma.item.create({
+      data: { ...parsed.fields, imagePath: img.url, userId },
+    });
     // So adding an item while inside a collection puts it in that collection.
     await addToActiveCollection(userId, item.id);
   } catch (err) {
@@ -115,17 +135,19 @@ export async function updateItem(formData: FormData): Promise<ItemActionResult> 
   const parsed = readItemFields(formData);
   if (!parsed.ok) return { error: parsed.error };
 
+  const img = readImageUrl(formData);
+  if (!img.ok) return { error: img.error };
+
   try {
     const userId = await requireUserId();
     const existing = await prisma.item.findFirst({ where: { id, userId } });
     if (!existing) return { error: "Item not found" };
 
-    // Only replace the image if a new file was uploaded; otherwise keep the current one.
-    const image = formData.get("image");
+    // Only replace the image if a new one was uploaded; otherwise keep the current one.
     let imagePath = existing.imagePath;
-    if (image instanceof File && image.size > 0) {
-      imagePath = await saveImage(image);
-      await deleteImage(existing.imagePath);
+    if (img.url) {
+      imagePath = img.url;
+      await deleteImage(existing.imagePath); // clean up the blob we're replacing
     }
 
     await prisma.item.update({ where: { id }, data: { ...parsed.fields, imagePath } });

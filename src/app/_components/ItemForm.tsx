@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { upload } from "@vercel/blob/client";
 import { CATEGORIES } from "@/lib/types";
 import type { ItemActionResult } from "@/lib/actions";
 
@@ -217,22 +218,37 @@ export function ItemForm({
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const fd = new FormData();
-    if (defaults.id) fd.set("id", defaults.id);
-    fd.set("name", name);
-    fd.set("category", category);
-    fd.set("subtype", subtype);
-    fd.set("color", color);
-    fd.set("notes", notes);
-    if (imageFile) fd.set("image", imageFile);
 
     startTransition(async () => {
       try {
+        // Upload the (already-downscaled) photo straight to Blob from the
+        // browser, then hand the Server Action just the resulting URL. The file
+        // bytes never go through the action, so upload size isn't capped by the
+        // action/request-body limits.
+        let imageUrl: string | null = null;
+        if (imageFile) {
+          const uploaded = await upload(`items/${imageFile.name}`, imageFile, {
+            access: "public",
+            handleUploadUrl: "/api/blob/upload",
+            contentType: imageFile.type,
+          });
+          imageUrl = uploaded.url;
+        }
+
+        const fd = new FormData();
+        if (defaults.id) fd.set("id", defaults.id);
+        fd.set("name", name);
+        fd.set("category", category);
+        fd.set("subtype", subtype);
+        fd.set("color", color);
+        fd.set("notes", notes);
+        if (imageUrl) fd.set("imageUrl", imageUrl);
+
         const result = await action(fd);
         // On success the action redirects; on failure it returns an error.
         if (result?.error) setError(result.error);
-      } catch {
-        setError("Something went wrong. Please try again.");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       }
     });
   };

@@ -6,7 +6,13 @@ const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
-  const isPublic = pathname === "/signin" || pathname.startsWith("/api/auth");
+  // /api/blob mints Blob upload tokens; it does its own auth (and the Blob
+  // upload-completed webhook arrives with no session cookie), so it can't sit
+  // behind the sign-in redirect.
+  const isPublic =
+    pathname === "/signin" ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/blob");
   if (!req.auth && !isPublic) {
     const url = req.nextUrl.clone();
     url.pathname = "/signin";

@@ -10,13 +10,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
-  experimental: {
-    // Item photos are uploaded through a Server Action; the default cap is 1MB,
-    // which a pasted screenshot easily exceeds. Allow larger images.
-    serverActions: {
-      bodySizeLimit: "10mb",
-    },
-  },
+  // Item photos upload directly from the browser to Vercel Blob (see
+  // /api/blob/upload), so nothing large flows through a Server Action and the
+  // default body limit is fine.
 };
 
 export default nextConfig;
