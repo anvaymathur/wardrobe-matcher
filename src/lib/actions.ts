@@ -12,6 +12,15 @@ function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
 }
 
+/** Log the underlying error server-side and return a short reason for the UI.
+ * Surfacing the real cause (e.g. a missing Blob token) turns a generic
+ * "please try again" into something we can actually act on. */
+function reason(err: unknown, fallback: string): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(fallback, err);
+  return msg ? `${fallback} (${msg})` : fallback;
+}
+
 function selectedItemIds(formData: FormData): string[] {
   return formData.getAll("itemId").map(String).filter(Boolean);
 }
@@ -91,8 +100,8 @@ export async function createItem(formData: FormData): Promise<ItemActionResult> 
     const item = await prisma.item.create({ data: { ...parsed.fields, imagePath, userId } });
     // So adding an item while inside a collection puts it in that collection.
     await addToActiveCollection(userId, item.id);
-  } catch {
-    return { error: "Couldn't save the item. Please try again." };
+  } catch (err) {
+    return { error: reason(err, "Couldn't save the item") };
   }
 
   revalidatePath("/");
@@ -120,8 +129,8 @@ export async function updateItem(formData: FormData): Promise<ItemActionResult> 
     }
 
     await prisma.item.update({ where: { id }, data: { ...parsed.fields, imagePath } });
-  } catch {
-    return { error: "Couldn't save changes. Please try again." };
+  } catch (err) {
+    return { error: reason(err, "Couldn't save changes") };
   }
 
   revalidatePath("/");
