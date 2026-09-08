@@ -15,7 +15,8 @@ jobs:
           node-version: 20
           cache: npm
       # postinstall runs `prisma generate`, so the client is ready for tsc/tests.
-      - run: npm ci
+      # `npm install` (not `ci`) tolerates platform-specific optional-dep gaps.
+      - run: npm install --no-audit --no-fund
       - name: Type-check
         run: npx tsc --noEmit
       - name: Unit tests
