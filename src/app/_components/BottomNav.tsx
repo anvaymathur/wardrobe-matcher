@@ -12,7 +12,7 @@ const tabs = [
 
 export function BottomNav() {
   const pathname = usePathname();
-  if (pathname === "/login") return null;
+  if (pathname === "/signin") return null;
 
   return (
     <>

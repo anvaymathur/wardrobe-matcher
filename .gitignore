@@ -57,5 +57,6 @@ next-env.d.ts
 /public/uploads/*
 !/public/uploads/.gitkeep
 
-# one-time migration helper (not part of the app)
+# one-time migration helpers (not part of the app)
 /migrate-to-cloud.mts
+/backfill-owner.mts

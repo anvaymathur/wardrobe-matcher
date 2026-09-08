@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { createPairing } from "@/lib/actions";
 import { getPairingsForItem, getCandidateItems } from "@/lib/pairings";
+import { USER_A } from "./setup";
 
 function form(fields: Record<string, string>): FormData {
   const fd = new FormData();
@@ -13,9 +14,9 @@ describe("pairings", () => {
   beforeEach(async () => {
     await prisma.item.createMany({
       data: [
-        { id: "top", name: "Tee", category: "TOP", subtype: "tee" },
-        { id: "bot", name: "Jeans", category: "BOTTOM", subtype: "jeans" },
-        { id: "top2", name: "Hoodie", category: "TOP", subtype: "hoodie" },
+        { id: "top", name: "Tee", category: "TOP", subtype: "tee", userId: USER_A },
+        { id: "bot", name: "Jeans", category: "BOTTOM", subtype: "jeans", userId: USER_A },
+        { id: "top2", name: "Hoodie", category: "TOP", subtype: "hoodie", userId: USER_A },
       ],
     });
   });

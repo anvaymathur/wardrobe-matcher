@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { getItems, getUnpairedCount } from "@/lib/items";
+import { USER_A } from "./setup";
 
 async function seed() {
   await prisma.item.createMany({
     data: [
-      { id: "t1", name: "White Tee", category: "TOP", subtype: "t-shirt", color: "white", favorite: true },
-      { id: "t2", name: "Black Hoodie", category: "TOP", subtype: "hoodie" },
-      { id: "b1", name: "Blue Jeans", category: "BOTTOM", subtype: "jeans", color: "blue" },
+      { id: "t1", name: "White Tee", category: "TOP", subtype: "t-shirt", color: "white", favorite: true, userId: USER_A },
+      { id: "t2", name: "Black Hoodie", category: "TOP", subtype: "hoodie", userId: USER_A },
+      { id: "b1", name: "Blue Jeans", category: "BOTTOM", subtype: "jeans", color: "blue", userId: USER_A },
     ],
   });
 }
@@ -39,7 +40,7 @@ describe("getItems", () => {
     expect((await getItems({ unpaired: true })).length).toBe(3);
     expect(await getUnpairedCount()).toBe(3);
 
-    await prisma.pairing.create({ data: { itemAId: "b1", itemBId: "t1", tier: 1 } });
+    await prisma.pairing.create({ data: { itemAId: "b1", itemBId: "t1", tier: 1, userId: USER_A } });
     const unpaired = (await getItems({ unpaired: true })).map((i) => i.id).sort();
     expect(unpaired).toEqual(["t2"]);
     expect(await getUnpairedCount()).toBe(1);
@@ -47,7 +48,7 @@ describe("getItems", () => {
 
   it("scopes to a collection", async () => {
     const col = await prisma.collection.create({
-      data: { name: "Trip", items: { create: [{ itemId: "t1" }, { itemId: "b1" }] } },
+      data: { name: "Trip", userId: USER_A, items: { create: [{ itemId: "t1" }, { itemId: "b1" }] } },
     });
     const scoped = await getItems({ collectionId: col.id });
     expect(scoped.map((i) => i.id).sort()).toEqual(["b1", "t1"]);

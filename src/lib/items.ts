@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { isCategory } from "@/lib/types";
+import { requireUserId } from "@/lib/currentUser";
 import type { Prisma } from "@/generated/prisma/client";
 
 export type ItemFilters = {
@@ -15,7 +16,7 @@ export type ItemFilters = {
 export async function getItems(filters: ItemFilters = {}) {
   const { category, q, sort, favorite, unpaired, collectionId } = filters;
 
-  const where: Prisma.ItemWhereInput = {};
+  const where: Prisma.ItemWhereInput = { userId: await requireUserId() };
   if (isCategory(category)) where.category = category;
   if (collectionId) where.collections = { some: { collectionId } };
   if (favorite) where.favorite = true;
@@ -48,13 +49,15 @@ export async function getItems(filters: ItemFilters = {}) {
 
 export type ClosetItem = Awaited<ReturnType<typeof getItems>>[number];
 
-export function getItem(id: string) {
-  return prisma.item.findUnique({ where: { id } });
+export async function getItem(id: string) {
+  const userId = await requireUserId();
+  return prisma.item.findFirst({ where: { id, userId } });
 }
 
 /** How many items have no pairings at all — used for the "Unpaired" nudge. */
-export function getUnpairedCount() {
+export async function getUnpairedCount() {
+  const userId = await requireUserId();
   return prisma.item.count({
-    where: { pairingsA: { none: {} }, pairingsB: { none: {} } },
+    where: { userId, pairingsA: { none: {} }, pairingsB: { none: {} } },
   });
 }

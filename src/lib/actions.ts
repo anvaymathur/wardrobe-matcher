@@ -4,11 +4,26 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/currentUser";
 import { saveImage, deleteImage } from "@/lib/storage";
 import { isCategory, isValidTier } from "@/lib/types";
 
 function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
+}
+
+function selectedItemIds(formData: FormData): string[] {
+  return formData.getAll("itemId").map(String).filter(Boolean);
+}
+
+/** Narrow a list of item ids to the ones actually owned by the user. */
+async function ownedItemIds(userId: string, ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await prisma.item.findMany({
+    where: { userId, id: { in: ids } },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
 }
 
 type ItemFields = {
@@ -49,16 +64,16 @@ function readItemFields(
 // input and let them retry) and redirect on success.
 export type ItemActionResult = { error: string } | void;
 
-/** Add a freshly-created item to the active collection, if one is selected. */
-export async function addToActiveCollection(itemId: string) {
+/** Add a freshly-created item to the active collection, if the user owns one. */
+async function addToActiveCollection(userId: string, itemId: string) {
   const activeId = (await cookies()).get("collection")?.value;
   if (!activeId || activeId === "all") return;
 
-  const exists = await prisma.collection.findUnique({
-    where: { id: activeId },
+  const owned = await prisma.collection.findFirst({
+    where: { id: activeId, userId },
     select: { id: true },
   });
-  if (exists) {
+  if (owned) {
     await prisma.collectionItem.create({ data: { collectionId: activeId, itemId } });
   }
 }
@@ -68,13 +83,14 @@ export async function createItem(formData: FormData): Promise<ItemActionResult> 
   if (!parsed.ok) return { error: parsed.error };
 
   try {
+    const userId = await requireUserId();
     const image = formData.get("image");
     const imagePath =
       image instanceof File && image.size > 0 ? await saveImage(image) : null;
 
-    const item = await prisma.item.create({ data: { ...parsed.fields, imagePath } });
+    const item = await prisma.item.create({ data: { ...parsed.fields, imagePath, userId } });
     // So adding an item while inside a collection puts it in that collection.
-    await addToActiveCollection(item.id);
+    await addToActiveCollection(userId, item.id);
   } catch {
     return { error: "Couldn't save the item. Please try again." };
   }
@@ -91,7 +107,8 @@ export async function updateItem(formData: FormData): Promise<ItemActionResult> 
   if (!parsed.ok) return { error: parsed.error };
 
   try {
-    const existing = await prisma.item.findUnique({ where: { id } });
+    const userId = await requireUserId();
+    const existing = await prisma.item.findFirst({ where: { id, userId } });
     if (!existing) return { error: "Item not found" };
 
     // Only replace the image if a new file was uploaded; otherwise keep the current one.
@@ -114,11 +131,13 @@ export async function updateItem(formData: FormData): Promise<ItemActionResult> 
 export async function deleteItem(formData: FormData) {
   const id = text(formData, "id");
   if (!id) throw new Error("Missing item id");
+  const userId = await requireUserId();
 
-  const existing = await prisma.item.findUnique({ where: { id } });
+  const existing = await prisma.item.findFirst({ where: { id, userId } });
+  if (!existing) return;
   // Deleting the item cascades to its pairings (see schema).
   await prisma.item.delete({ where: { id } });
-  await deleteImage(existing?.imagePath ?? null);
+  await deleteImage(existing.imagePath);
 
   revalidatePath("/");
 }
@@ -127,15 +146,16 @@ export async function createPairing(formData: FormData) {
   const itemId = text(formData, "itemId");
   const otherId = text(formData, "otherId");
   const tier = Number(text(formData, "tier"));
+  const userId = await requireUserId();
 
   if (!itemId || !otherId) throw new Error("Please pick an item to match");
   if (itemId === otherId) throw new Error("An item can't be matched with itself");
   if (!isValidTier(tier)) throw new Error("Tier must be 1, 2, or 3");
 
-  // Matches are cross-category (e.g. a top with a bottom), never same-category.
+  // Both items must belong to the user; matches are cross-category.
   const [a, b] = await Promise.all([
-    prisma.item.findUnique({ where: { id: itemId } }),
-    prisma.item.findUnique({ where: { id: otherId } }),
+    prisma.item.findFirst({ where: { id: itemId, userId } }),
+    prisma.item.findFirst({ where: { id: otherId, userId } }),
   ]);
   if (!a || !b) throw new Error("Item not found");
   if (a.category === b.category) {
@@ -145,10 +165,9 @@ export async function createPairing(formData: FormData) {
   // Store each pair once by normalizing the order of the two ids.
   const [itemAId, itemBId] = [itemId, otherId].sort();
 
-  // Upsert so re-adding an existing pair simply updates its tier.
   await prisma.pairing.upsert({
     where: { itemAId_itemBId: { itemAId, itemBId } },
-    create: { itemAId, itemBId, tier },
+    create: { itemAId, itemBId, tier, userId },
     update: { tier },
   });
 
@@ -160,8 +179,9 @@ export async function deletePairing(formData: FormData) {
   const pairingId = text(formData, "pairingId");
   const itemId = text(formData, "itemId");
   if (!pairingId) throw new Error("Missing pairing id");
+  const userId = await requireUserId();
 
-  await prisma.pairing.delete({ where: { id: pairingId } });
+  await prisma.pairing.deleteMany({ where: { id: pairingId, userId } });
 
   if (itemId) revalidatePath(`/items/${itemId}`);
 }
@@ -169,8 +189,9 @@ export async function deletePairing(formData: FormData) {
 export async function toggleFavorite(formData: FormData) {
   const id = text(formData, "id");
   if (!id) throw new Error("Missing item id");
+  const userId = await requireUserId();
 
-  const item = await prisma.item.findUnique({ where: { id }, select: { favorite: true } });
+  const item = await prisma.item.findFirst({ where: { id, userId }, select: { favorite: true } });
   if (!item) throw new Error("Item not found");
 
   await prisma.item.update({ where: { id }, data: { favorite: !item.favorite } });
@@ -179,13 +200,10 @@ export async function toggleFavorite(formData: FormData) {
   revalidatePath(`/items/${id}`);
 }
 
-function selectedItemIds(formData: FormData): string[] {
-  return formData.getAll("itemId").map(String).filter(Boolean);
-}
-
 export async function createOutfit(formData: FormData) {
   const name = text(formData, "name");
-  const itemIds = selectedItemIds(formData);
+  const userId = await requireUserId();
+  const itemIds = await ownedItemIds(userId, selectedItemIds(formData));
   if (!name) throw new Error("Give the outfit a name");
   if (itemIds.length === 0) throw new Error("Pick at least one item");
 
@@ -193,6 +211,7 @@ export async function createOutfit(formData: FormData) {
     data: {
       name,
       notes: text(formData, "notes") || null,
+      userId,
       items: { create: itemIds.map((itemId) => ({ itemId })) },
     },
   });
@@ -204,20 +223,19 @@ export async function createOutfit(formData: FormData) {
 export async function updateOutfit(formData: FormData) {
   const id = text(formData, "id");
   const name = text(formData, "name");
-  const itemIds = selectedItemIds(formData);
+  const userId = await requireUserId();
+  const itemIds = await ownedItemIds(userId, selectedItemIds(formData));
   if (!id) throw new Error("Missing outfit id");
   if (!name) throw new Error("Give the outfit a name");
   if (itemIds.length === 0) throw new Error("Pick at least one item");
 
-  // Replace the item set wholesale — simplest and reliable.
+  const existing = await prisma.outfit.findFirst({ where: { id, userId }, select: { id: true } });
+  if (!existing) throw new Error("Outfit not found");
+
   await prisma.outfitItem.deleteMany({ where: { outfitId: id } });
   await prisma.outfit.update({
     where: { id },
-    data: {
-      name,
-      notes: text(formData, "notes") || null,
-      items: { create: itemIds.map((itemId) => ({ itemId })) },
-    },
+    data: { name, notes: text(formData, "notes") || null, items: { create: itemIds.map((itemId) => ({ itemId })) } },
   });
 
   revalidatePath("/outfits");
@@ -228,8 +246,9 @@ export async function updateOutfit(formData: FormData) {
 export async function deleteOutfit(formData: FormData) {
   const id = text(formData, "id");
   if (!id) throw new Error("Missing outfit id");
+  const userId = await requireUserId();
 
-  await prisma.outfit.delete({ where: { id } }); // cascades to OutfitItem
+  await prisma.outfit.deleteMany({ where: { id, userId } }); // cascades to OutfitItem
 
   revalidatePath("/outfits");
   redirect("/outfits");
@@ -239,12 +258,13 @@ const COLLECTION_COOKIE = "collection";
 
 export async function createCollection(formData: FormData) {
   const name = text(formData, "name");
-  const itemIds = selectedItemIds(formData);
+  const userId = await requireUserId();
+  const itemIds = await ownedItemIds(userId, selectedItemIds(formData));
   if (!name) throw new Error("Give the collection a name");
   if (itemIds.length === 0) throw new Error("Pick at least one item");
 
   const collection = await prisma.collection.create({
-    data: { name, items: { create: itemIds.map((itemId) => ({ itemId })) } },
+    data: { name, userId, items: { create: itemIds.map((itemId) => ({ itemId })) } },
   });
 
   // Creating a collection makes it the active one.
@@ -260,10 +280,14 @@ export async function createCollection(formData: FormData) {
 export async function updateCollection(formData: FormData) {
   const id = text(formData, "id");
   const name = text(formData, "name");
-  const itemIds = selectedItemIds(formData);
+  const userId = await requireUserId();
+  const itemIds = await ownedItemIds(userId, selectedItemIds(formData));
   if (!id) throw new Error("Missing collection id");
   if (!name) throw new Error("Give the collection a name");
   if (itemIds.length === 0) throw new Error("Pick at least one item");
+
+  const existing = await prisma.collection.findFirst({ where: { id, userId }, select: { id: true } });
+  if (!existing) throw new Error("Collection not found");
 
   await prisma.collectionItem.deleteMany({ where: { collectionId: id } });
   await prisma.collection.update({
@@ -278,8 +302,9 @@ export async function updateCollection(formData: FormData) {
 export async function deleteCollection(formData: FormData) {
   const id = text(formData, "id");
   if (!id) throw new Error("Missing collection id");
+  const userId = await requireUserId();
 
-  await prisma.collection.delete({ where: { id } }); // cascades to CollectionItem
+  await prisma.collection.deleteMany({ where: { id, userId } }); // cascades to CollectionItem
 
   const jar = await cookies();
   if (jar.get(COLLECTION_COOKIE)?.value === id) jar.delete(COLLECTION_COOKIE);

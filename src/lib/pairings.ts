@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/currentUser";
 
 /**
  * A pair is stored once (see the normalized order in `createPairing`), so an
@@ -6,8 +7,9 @@ import { prisma } from "@/lib/prisma";
  * an item's pairings, along with the tier and the pairing id.
  */
 export async function getPairingsForItem(itemId: string) {
+  const userId = await requireUserId();
   const pairings = await prisma.pairing.findMany({
-    where: { OR: [{ itemAId: itemId }, { itemBId: itemId }] },
+    where: { userId, OR: [{ itemAId: itemId }, { itemBId: itemId }] },
     include: { itemA: true, itemB: true },
     orderBy: { tier: "asc" },
   });
@@ -20,8 +22,10 @@ export async function getPairingsForItem(itemId: string) {
 }
 
 /** Every pairing as flat {itemAId, itemBId, tier} rows — used by the shuffler. */
-export function getAllPairings() {
+export async function getAllPairings() {
+  const userId = await requireUserId();
   return prisma.pairing.findMany({
+    where: { userId },
     select: { itemAId: true, itemBId: true, tier: true },
   });
 }
@@ -31,8 +35,9 @@ export function getAllPairings() {
  * with a bottom, not another top) that aren't already matched with this item.
  */
 export async function getCandidateItems(item: { id: string; category: string }) {
+  const userId = await requireUserId();
   const pairings = await prisma.pairing.findMany({
-    where: { OR: [{ itemAId: item.id }, { itemBId: item.id }] },
+    where: { userId, OR: [{ itemAId: item.id }, { itemBId: item.id }] },
     select: { itemAId: true, itemBId: true },
   });
   const alreadyMatched = pairings.map((p) =>
@@ -41,6 +46,7 @@ export async function getCandidateItems(item: { id: string; category: string }) 
 
   return prisma.item.findMany({
     where: {
+      userId,
       id: { notIn: [item.id, ...alreadyMatched] },
       category: { not: item.category },
     },

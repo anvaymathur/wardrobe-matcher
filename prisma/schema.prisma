@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -10,6 +8,20 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+}
+
+// A signed-in person. Everything below is scoped to its owner.
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  image     String?
+  createdAt DateTime @default(now())
+
+  items       Item[]
+  pairings    Pairing[]
+  outfits     Outfit[]
+  collections Collection[]
 }
 
 model Item {
@@ -24,10 +36,16 @@ model Item {
   favorite  Boolean  @default(false)
   createdAt DateTime @default(now())
 
+  // Nullable so the migration is clean on existing rows; the app always sets it.
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+
   pairingsA   Pairing[]        @relation("ItemA")
   pairingsB   Pairing[]        @relation("ItemB")
   outfits     OutfitItem[]
   collections CollectionItem[]
+
+  @@index([userId])
 }
 
 model Pairing {
@@ -38,7 +56,11 @@ model Pairing {
   itemBId String
   tier    Int // 1 = best match, up to 3
 
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+
   @@unique([itemAId, itemBId]) // a pair is stored once
+  @@index([userId])
 }
 
 // A saved outfit: a free-form set of items (any categories).
@@ -48,6 +70,11 @@ model Outfit {
   notes     String?
   createdAt DateTime     @default(now())
   items     OutfitItem[]
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+
+  @@index([userId])
 }
 
 model OutfitItem {
@@ -67,6 +94,11 @@ model Collection {
   name      String
   createdAt DateTime         @default(now())
   items     CollectionItem[]
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+
+  @@index([userId])
 }
 
 model CollectionItem {

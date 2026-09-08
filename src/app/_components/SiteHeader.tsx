@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 // reach top row.
 export function SiteHeader() {
   const pathname = usePathname();
-  if (pathname === "/login") return null;
+  if (pathname === "/signin") return null;
 
   return (
     <header className="hidden border-b border-black/10 sm:block dark:border-white/15">

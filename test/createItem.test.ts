@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { getItems } from "@/lib/items";
 import { createItem } from "@/lib/actions";
-import { cookieStore } from "./setup";
+import { cookieStore, USER_A } from "./setup";
 
 function itemForm(fields: Record<string, string>): FormData {
   const fd = new FormData();
@@ -12,10 +12,9 @@ function itemForm(fields: Record<string, string>): FormData {
 
 describe("createItem", () => {
   it("adds a new item to the active collection, so it shows in the scoped closet", async () => {
-    // A collection with one item, marked active.
-    await prisma.item.create({ data: { id: "seed", name: "Seed Tee", category: "TOP", subtype: "tee" } });
+    await prisma.item.create({ data: { id: "seed", name: "Seed Tee", category: "TOP", subtype: "tee", userId: USER_A } });
     const col = await prisma.collection.create({
-      data: { name: "Japan Trip", items: { create: [{ itemId: "seed" }] } },
+      data: { name: "Japan Trip", userId: USER_A, items: { create: [{ itemId: "seed" }] } },
     });
     cookieStore.set("collection", col.id);
 
@@ -28,6 +27,7 @@ describe("createItem", () => {
       where: { name: "Packed Shirt" },
       include: { collections: true },
     });
+    expect(created?.userId).toBe(USER_A);
     expect(created?.collections).toHaveLength(1);
   });
 
@@ -43,7 +43,7 @@ describe("createItem", () => {
   it("ignores a stale/deleted active collection without crashing", async () => {
     cookieStore.set("collection", "does-not-exist");
     const res = await createItem(itemForm({ name: "Ghost", category: "TOP", subtype: "tee" }));
-    expect(res).toBeUndefined(); // success (redirects)
+    expect(res).toBeUndefined();
     expect(await prisma.item.count({ where: { name: "Ghost" } })).toBe(1);
   });
 
