@@ -11,57 +11,101 @@ function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
 }
 
-/** Read and validate the shared item fields from a form submission. */
-function readItemFields(formData: FormData) {
+type ItemFields = {
+  name: string;
+  category: string;
+  subtype: string;
+  color: string | null;
+  notes: string | null;
+  sourceUrl: string | null;
+};
+
+/** Validate the shared item fields, returning either the fields or an error. */
+function readItemFields(
+  formData: FormData,
+): { ok: true; fields: ItemFields } | { ok: false; error: string } {
   const name = text(formData, "name");
   const category = text(formData, "category");
   const subtype = text(formData, "subtype");
 
-  if (!name) throw new Error("Name is required");
-  if (!isCategory(category)) throw new Error("Please choose a valid category");
-  if (!subtype) throw new Error("Subtype is required");
+  if (!name) return { ok: false, error: "Name is required" };
+  if (!isCategory(category)) return { ok: false, error: "Please choose a category" };
+  if (!subtype) return { ok: false, error: "Subtype is required" };
 
   return {
-    name,
-    category,
-    subtype,
-    color: text(formData, "color") || null,
-    notes: text(formData, "notes") || null,
-    sourceUrl: text(formData, "sourceUrl") || null,
+    ok: true,
+    fields: {
+      name,
+      category,
+      subtype,
+      color: text(formData, "color") || null,
+      notes: text(formData, "notes") || null,
+      sourceUrl: text(formData, "sourceUrl") || null,
+    },
   };
 }
 
-export async function createItem(formData: FormData) {
-  const fields = readItemFields(formData);
+// Actions return an error object on failure (so the form can keep the user's
+// input and let them retry) and redirect on success.
+export type ItemActionResult = { error: string } | void;
 
-  const image = formData.get("image");
-  const imagePath =
-    image instanceof File && image.size > 0 ? await saveImage(image) : null;
+/** Add a freshly-created item to the active collection, if one is selected. */
+export async function addToActiveCollection(itemId: string) {
+  const activeId = (await cookies()).get("collection")?.value;
+  if (!activeId || activeId === "all") return;
 
-  await prisma.item.create({ data: { ...fields, imagePath } });
+  const exists = await prisma.collection.findUnique({
+    where: { id: activeId },
+    select: { id: true },
+  });
+  if (exists) {
+    await prisma.collectionItem.create({ data: { collectionId: activeId, itemId } });
+  }
+}
+
+export async function createItem(formData: FormData): Promise<ItemActionResult> {
+  const parsed = readItemFields(formData);
+  if (!parsed.ok) return { error: parsed.error };
+
+  try {
+    const image = formData.get("image");
+    const imagePath =
+      image instanceof File && image.size > 0 ? await saveImage(image) : null;
+
+    const item = await prisma.item.create({ data: { ...parsed.fields, imagePath } });
+    // So adding an item while inside a collection puts it in that collection.
+    await addToActiveCollection(item.id);
+  } catch {
+    return { error: "Couldn't save the item. Please try again." };
+  }
 
   revalidatePath("/");
   redirect("/");
 }
 
-export async function updateItem(formData: FormData) {
+export async function updateItem(formData: FormData): Promise<ItemActionResult> {
   const id = text(formData, "id");
-  if (!id) throw new Error("Missing item id");
+  if (!id) return { error: "Missing item id" };
 
-  const existing = await prisma.item.findUnique({ where: { id } });
-  if (!existing) throw new Error("Item not found");
+  const parsed = readItemFields(formData);
+  if (!parsed.ok) return { error: parsed.error };
 
-  const fields = readItemFields(formData);
+  try {
+    const existing = await prisma.item.findUnique({ where: { id } });
+    if (!existing) return { error: "Item not found" };
 
-  // Only replace the image if a new file was uploaded; otherwise keep the current one.
-  const image = formData.get("image");
-  let imagePath = existing.imagePath;
-  if (image instanceof File && image.size > 0) {
-    imagePath = await saveImage(image);
-    await deleteImage(existing.imagePath);
+    // Only replace the image if a new file was uploaded; otherwise keep the current one.
+    const image = formData.get("image");
+    let imagePath = existing.imagePath;
+    if (image instanceof File && image.size > 0) {
+      imagePath = await saveImage(image);
+      await deleteImage(existing.imagePath);
+    }
+
+    await prisma.item.update({ where: { id }, data: { ...parsed.fields, imagePath } });
+  } catch {
+    return { error: "Couldn't save changes. Please try again." };
   }
-
-  await prisma.item.update({ where: { id }, data: { ...fields, imagePath } });
 
   revalidatePath("/");
   redirect("/");

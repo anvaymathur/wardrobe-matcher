@@ -50,6 +50,8 @@ next-env.d.ts
 # database (SQLite)
 /dev.db
 /dev.db-journal
+/prisma/test.db
+/prisma/test.db-journal
 
 # uploaded images
 /public/uploads/*

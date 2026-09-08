@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { CATEGORIES } from "@/lib/types";
+import type { ItemActionResult } from "@/lib/actions";
 
 export type ItemFormDefaults = {
   id?: string;
@@ -16,26 +16,19 @@ export type ItemFormDefaults = {
 };
 
 const inputClass =
-  "w-full rounded-md border border-black/15 bg-background text-foreground px-3 py-2 text-sm outline-none focus:border-foreground dark:border-white/20";
+  "w-full rounded-md border border-black/15 bg-background text-foreground px-3 py-2.5 text-base outline-none focus:border-foreground dark:border-white/20";
 const labelClass = "flex flex-col gap-1.5 text-sm font-medium";
 
-function SubmitButton({ label }: { label: string }) {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="w-full rounded-full bg-foreground px-5 py-3 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50 sm:w-auto"
-    >
-      {pending ? "Saving…" : label}
-    </button>
-  );
-}
-
-/** Photo field: accepts a pasted image (Ctrl/Cmd+V), a dropped file, or a picked
- * file, and mirrors it into a hidden <input type="file" name="image"> so the
- * existing server action receives it unchanged. */
-function ImageField({ initialImagePath }: { initialImagePath?: string | null }) {
+/** Photo field: accepts a pasted / dropped / picked image, shows a preview, and
+ * reports the chosen File up to the form (kept in React state so it survives a
+ * failed save). */
+function ImageField({
+  initialImagePath,
+  onFile,
+}: {
+  initialImagePath?: string | null;
+  onFile: (file: File | null) => void;
+}) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const objectUrlRef = useRef<string | null>(null);
   const [preview, setPreview] = useState<string | null>(initialImagePath ?? null);
@@ -43,19 +36,13 @@ function ImageField({ initialImagePath }: { initialImagePath?: string | null }) 
 
   const applyFile = (raw: File | null | undefined) => {
     if (!raw || !raw.type.startsWith("image/")) return;
-    // Clipboard images can arrive with an empty filename, which multipart form
-    // parsing drops — give it a name so it always uploads.
     const file = raw.name
       ? raw
       : new File([raw], `pasted.${raw.type.split("/")[1] || "png"}`, { type: raw.type });
-    // Put the file into the hidden input so it submits with the form.
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    if (fileInputRef.current) fileInputRef.current.files = dt.files;
-    // Swap the preview to the new file.
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     objectUrlRef.current = URL.createObjectURL(file);
     setPreview(objectUrlRef.current);
+    onFile(file);
   };
 
   const clear = () => {
@@ -65,6 +52,7 @@ function ImageField({ initialImagePath }: { initialImagePath?: string | null }) 
       objectUrlRef.current = null;
     }
     setPreview(initialImagePath ?? null);
+    onFile(null);
   };
 
   useEffect(() => {
@@ -86,7 +74,6 @@ function ImageField({ initialImagePath }: { initialImagePath?: string | null }) 
     return () => window.removeEventListener("paste", onPaste);
   }, []);
 
-  // Revoke the last object URL when unmounting.
   useEffect(
     () => () => {
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -95,25 +82,17 @@ function ImageField({ initialImagePath }: { initialImagePath?: string | null }) 
   );
 
   const showClear = preview !== null && preview !== (initialImagePath ?? null);
-  const openPicker = () => fileInputRef.current?.click();
 
   return (
     <div className={labelClass}>
       <span>
-        Photo <span className="font-normal text-black/50 dark:text-white/50">(optional)</span>
+        Photo{" "}
+        <span className="font-normal text-black/50 dark:text-white/50">
+          — paste, drag, or choose a file
+        </span>
       </span>
 
-      {/* The whole box is tappable — on a phone this opens the camera or photo library. */}
       <div
-        role="button"
-        tabIndex={0}
-        onClick={openPicker}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            openPicker();
-          }
-        }}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -124,10 +103,8 @@ function ImageField({ initialImagePath }: { initialImagePath?: string | null }) 
           setDragging(false);
           applyFile(e.dataTransfer.files?.[0]);
         }}
-        className={`flex cursor-pointer items-center gap-4 rounded-md border border-dashed p-3 transition-colors ${
-          dragging
-            ? "border-foreground bg-black/5 dark:bg-white/10"
-            : "border-black/20 hover:border-foreground dark:border-white/25"
+        className={`flex items-center gap-4 rounded-md border border-dashed p-3 transition-colors ${
+          dragging ? "border-foreground bg-black/5 dark:bg-white/10" : "border-black/20 dark:border-white/25"
         }`}
       >
         {preview ? (
@@ -139,29 +116,31 @@ function ImageField({ initialImagePath }: { initialImagePath?: string | null }) 
           </div>
         )}
 
-        <div className="flex flex-col items-start gap-1">
-          <span className="text-sm font-medium">{preview ? "Change photo" : "Add a photo"}</span>
-          <span className="text-xs text-black/50 dark:text-white/50">
-            Tap to take a photo or pick one. On a computer you can also paste or drag an image.
-          </span>
-          {showClear && (
+        <div className="flex flex-col items-start gap-1.5 text-xs">
+          <span className="text-black/50 dark:text-white/50">Paste an image, drop one here, or</span>
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                clear();
-              }}
-              className="mt-1 rounded px-1 py-0.5 text-xs font-medium text-red-600 hover:underline dark:text-red-400"
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded-full border border-black/20 px-3 py-1 font-medium hover:border-foreground dark:border-white/25"
             >
-              Clear
+              Choose file
             </button>
-          )}
+            {showClear && (
+              <button
+                type="button"
+                onClick={clear}
+                className="font-medium text-red-600 hover:underline dark:text-red-400"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       <input
         ref={fileInputRef}
-        name="image"
         type="file"
         accept="image/*"
         className="hidden"
@@ -176,20 +155,57 @@ export function ItemForm({
   defaults = {},
   submitLabel,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<ItemActionResult>;
   defaults?: ItemFormDefaults;
   submitLabel: string;
 }) {
+  // Controlled fields so a failed save keeps everything the user entered.
+  const [name, setName] = useState(defaults.name ?? "");
+  const [category, setCategory] = useState(defaults.category ?? "");
+  const [subtype, setSubtype] = useState(defaults.subtype ?? "");
+  const [color, setColor] = useState(defaults.color ?? "");
+  const [notes, setNotes] = useState(defaults.notes ?? "");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData();
+    if (defaults.id) fd.set("id", defaults.id);
+    fd.set("name", name);
+    fd.set("category", category);
+    fd.set("subtype", subtype);
+    fd.set("color", color);
+    fd.set("notes", notes);
+    if (imageFile) fd.set("image", imageFile);
+
+    startTransition(async () => {
+      try {
+        const result = await action(fd);
+        // On success the action redirects; on failure it returns an error.
+        if (result?.error) setError(result.error);
+      } catch {
+        setError("Something went wrong. Please try again.");
+      }
+    });
+  };
+
   return (
-    <form action={action} className="flex max-w-lg flex-col gap-5">
-      {defaults.id && <input type="hidden" name="id" value={defaults.id} />}
+    <form onSubmit={onSubmit} className="flex max-w-lg flex-col gap-5">
+      {error && (
+        <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
 
       <label className={labelClass}>
         Name
         <input
-          name="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           required
-          defaultValue={defaults.name ?? ""}
           placeholder="Blue Oxford shirt"
           className={inputClass}
         />
@@ -199,9 +215,9 @@ export function ItemForm({
         <label className={labelClass}>
           Category
           <select
-            name="category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
             required
-            defaultValue={defaults.category ?? ""}
             className={inputClass}
           >
             <option value="" disabled>
@@ -218,9 +234,9 @@ export function ItemForm({
         <label className={labelClass}>
           Subtype
           <input
-            name="subtype"
+            value={subtype}
+            onChange={(e) => setSubtype(e.target.value)}
             required
-            defaultValue={defaults.subtype ?? ""}
             placeholder="dress shirt"
             className={inputClass}
           />
@@ -230,27 +246,33 @@ export function ItemForm({
       <label className={labelClass}>
         Color <span className="font-normal text-black/50 dark:text-white/50">(optional)</span>
         <input
-          name="color"
-          defaultValue={defaults.color ?? ""}
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
           placeholder="blue"
           className={inputClass}
         />
       </label>
 
-      <ImageField initialImagePath={defaults.imagePath} />
+      <ImageField initialImagePath={defaults.imagePath} onFile={setImageFile} />
 
       <label className={labelClass}>
         Notes <span className="font-normal text-black/50 dark:text-white/50">(optional)</span>
         <textarea
-          name="notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
           rows={2}
-          defaultValue={defaults.notes ?? ""}
           className={inputClass}
         />
       </label>
 
       <div className="pt-1">
-        <SubmitButton label={submitLabel} />
+        <button
+          type="submit"
+          disabled={pending}
+          className="w-full rounded-full bg-foreground px-5 py-3 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50 sm:w-auto"
+        >
+          {pending ? "Saving…" : submitLabel}
+        </button>
       </div>
     </form>
   );
