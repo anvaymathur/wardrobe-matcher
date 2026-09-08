@@ -83,21 +83,27 @@ export default async function ItemDetailPage({
                   <h3 className="mb-2 text-sm font-medium text-black/60 dark:text-white/60">
                     {tierLabel(tier)}
                   </h3>
-                  <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {/* One item per row on phones so the full name is always
+                      readable — matches with no photo were otherwise unidentifiable. */}
+                  <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {matches.map(({ pairingId, item: other }) => (
                       <li
                         key={pairingId}
                         className="flex items-center gap-3 rounded-lg border border-black/10 p-2 dark:border-white/15"
                       >
                         <Link href={`/items/${other.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-black/5 dark:bg-white/10">
+                          <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded bg-black/5 dark:bg-white/10">
                             {other.imagePath ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={other.imagePath} alt={other.name} className="h-full w-full object-cover" />
-                            ) : null}
+                            ) : (
+                              <span className="text-[10px] leading-none text-black/40 dark:text-white/40">
+                                No photo
+                              </span>
+                            )}
                           </div>
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">{other.name}</p>
+                            <p className="text-sm font-medium break-words">{other.name}</p>
                             <p className="truncate text-xs text-black/50 dark:text-white/50">{other.subtype}</p>
                           </div>
                         </Link>

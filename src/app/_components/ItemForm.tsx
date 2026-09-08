@@ -19,6 +19,50 @@ const inputClass =
   "w-full rounded-md border border-black/15 bg-background text-foreground px-3 py-2.5 text-base outline-none focus:border-foreground dark:border-white/20";
 const labelClass = "flex flex-col gap-1.5 text-sm font-medium";
 
+// Phone photos are often several MB — larger than the Server Action / upload
+// body limits — so a full-size upload silently arrives truncated and the image
+// never saves. Downscale and re-encode in the browser first: this keeps uploads
+// small and reliable, and (as a bonus) applies EXIF orientation and converts
+// iPhone HEIC to JPEG so the photo isn't sideways or unviewable.
+const MAX_DIMENSION = 1600;
+const OUTPUT_TYPE = "image/jpeg";
+const OUTPUT_QUALITY = 0.85;
+
+async function downscaleImage(file: File): Promise<File> {
+  // Animated GIFs would be flattened to a single frame — leave them as-is.
+  if (file.type === "image/gif") return file;
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return file;
+    }
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, OUTPUT_TYPE, OUTPUT_QUALITY),
+    );
+    if (!blob) return file;
+    // If re-encoding didn't actually shrink an already-small JPEG, keep the original.
+    if (blob.size >= file.size && file.type === OUTPUT_TYPE) return file;
+
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
+    return new File([blob], `${baseName}.jpg`, { type: OUTPUT_TYPE });
+  } catch {
+    // Browser can't decode this format (e.g. HEIC off Safari) — send the original.
+    return file;
+  }
+}
+
 /** Photo field: accepts a pasted / dropped / picked image, shows a preview, and
  * reports the chosen File up to the form (kept in React state so it survives a
  * failed save). */
@@ -34,11 +78,12 @@ function ImageField({
   const [preview, setPreview] = useState<string | null>(initialImagePath ?? null);
   const [dragging, setDragging] = useState(false);
 
-  const applyFile = (raw: File | null | undefined) => {
+  const applyFile = async (raw: File | null | undefined) => {
     if (!raw || !raw.type.startsWith("image/")) return;
-    const file = raw.name
+    const named = raw.name
       ? raw
       : new File([raw], `pasted.${raw.type.split("/")[1] || "png"}`, { type: raw.type });
+    const file = await downscaleImage(named);
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     objectUrlRef.current = URL.createObjectURL(file);
     setPreview(objectUrlRef.current);
