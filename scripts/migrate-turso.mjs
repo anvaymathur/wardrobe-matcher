@@ -1,26 +1,28 @@
 /**
- * One-time step: create the weekly-planner tables in the Turso (production) DB.
- * Locally, `prisma migrate dev` already applied them to dev.db. Turso migrations
- * are applied separately (see backfill-owner.mts), so run this once against prod.
+ * Ensure the production (Turso) database has the current schema. Runs at build
+ * time on Vercel (see the "build" script), where DATABASE_URL + TURSO_AUTH_TOKEN
+ * are available, so schema changes ship with the deploy — no manual step.
  *
- * Easiest, using the prod env vars you already have on Vercel:
+ * Prisma's migrate engine doesn't cleanly target remote Turso, so we apply the
+ * DDL directly with @libsql/client. Everything is CREATE ... IF NOT EXISTS, so
+ * it's safe to run on every build. When you add a new table/index in the Prisma
+ * schema, add the matching idempotent statement here.
  *
- *   npx vercel env pull .env.local        # writes DATABASE_URL + TURSO_AUTH_TOKEN
- *   npx tsx --env-file=.env.local apply-planner-migration.mts
- *
- * (Or set TURSO_DATABASE_URL + TURSO_AUTH_TOKEN yourself.) It uses CREATE TABLE /
- * INDEX IF NOT EXISTS, so it's safe to re-run. Delete this file once prod is
- * migrated. NOTE: point it at Turso — with a file: URL it just edits dev.db.
+ * Local/dev builds use a `file:` URL that already has the schema (from
+ * `prisma migrate dev`), so we skip those.
  */
 import { createClient } from "@libsql/client";
 
-const url = process.env.TURSO_DATABASE_URL ?? process.env.DATABASE_URL;
+const url = process.env.DATABASE_URL;
 const authToken = process.env.TURSO_AUTH_TOKEN;
-if (!url) throw new Error("Set TURSO_DATABASE_URL (or DATABASE_URL) to your database URL.");
 
-const db = createClient({ url, authToken });
+if (!url || !/^(libsql|https?|wss?):/.test(url)) {
+  console.log("[migrate-turso] No remote database URL — skipping (local build).");
+  process.exit(0);
+}
 
 const statements = [
+  // Weekly planner (added 2026-09-08)
   `CREATE TABLE IF NOT EXISTS "PlannedDay" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "date" TEXT NOT NULL,
@@ -40,8 +42,8 @@ const statements = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "PlannedDayItem_plannedDayId_itemId_key" ON "PlannedDayItem"("plannedDayId", "itemId")`,
 ];
 
+const db = createClient({ url, authToken });
 for (const sql of statements) {
   await db.execute(sql);
 }
-
-console.log("Weekly-planner tables are ready in Turso.");
+console.log("[migrate-turso] Schema ensured on the remote database.");
