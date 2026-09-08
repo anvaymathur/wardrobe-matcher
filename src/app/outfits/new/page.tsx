@@ -19,7 +19,7 @@ export default async function NewOutfitPage() {
       </Link>
       <h1 className="mb-6 mt-3 text-2xl font-semibold tracking-tight">New outfit</h1>
       {activeCollection && <CollectionBanner name={activeCollection.name} />}
-      <OutfitForm action={createOutfit} items={items} submitLabel="Save outfit" />
+      <OutfitForm action={createOutfit} items={items} submitLabel="Save outfit" singlePerCategory />
     </div>
   );
 }

@@ -24,11 +24,13 @@ export function OutfitForm({
   items,
   defaults,
   submitLabel,
+  singlePerCategory = false,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   items: PickItem[];
   defaults?: { id?: string; name?: string; notes?: string | null; itemIds?: string[] };
   submitLabel: string;
+  singlePerCategory?: boolean;
 }) {
   return (
     <form action={action} className="flex flex-col gap-5">
@@ -47,7 +49,11 @@ export function OutfitForm({
 
       <div>
         <p className="mb-2 text-sm font-medium">Items</p>
-        <ItemMultiSelect items={items} defaultSelected={defaults?.itemIds ?? []} />
+        <ItemMultiSelect
+          items={items}
+          defaultSelected={defaults?.itemIds ?? []}
+          singlePerCategory={singlePerCategory}
+        />
       </div>
 
       <div className="pt-1">

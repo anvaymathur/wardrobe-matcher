@@ -33,6 +33,7 @@ export default async function EditOutfitPage({
           itemIds: outfit.items.map((oi) => oi.itemId),
         }}
         submitLabel="Save changes"
+        singlePerCategory
       />
     </div>
   );

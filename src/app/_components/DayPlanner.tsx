@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { setPlannedDay } from "@/lib/actions";
-import type { PickItem } from "./ItemMultiSelect";
+import { ItemPickerGrid, applyToggle, type PickItem } from "./ItemPickerGrid";
 
 export type PlanOutfit = { id: string; name: string; itemIds: string[] };
 
@@ -36,13 +36,8 @@ export function DayPlanner({
   const [selected, setSelected] = useState<Set<string>>(new Set(defaultSelected));
   const itemIds = new Set(items.map((i) => i.id));
 
-  const toggle = (id: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // A day is a single outfit, so keep at most one item per clothing type.
+  const toggle = (id: string) => setSelected((prev) => applyToggle(prev, id, items, true));
 
   // Start from a saved outfit: select exactly its items that still exist.
   const applyOutfit = (o: PlanOutfit) =>
@@ -83,7 +78,9 @@ export function DayPlanner({
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-sm font-medium">Items</p>
+          <p className="text-sm font-medium">
+            Items <span className="font-normal text-black/40 dark:text-white/40">· one per type</span>
+          </p>
           <div className="flex items-center gap-3 text-sm text-black/60 dark:text-white/60">
             <span>{selected.size} selected</span>
             {selected.size > 0 && (
@@ -98,42 +95,7 @@ export function DayPlanner({
           </div>
         </div>
 
-        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {items.map((item) => {
-            const isSel = selected.has(item.id);
-            return (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => toggle(item.id)}
-                  aria-pressed={isSel}
-                  className={`relative block w-full overflow-hidden rounded-lg border-2 transition-colors ${
-                    isSel ? "border-foreground" : "border-transparent"
-                  }`}
-                >
-                  <div className="aspect-square bg-black/5 dark:bg-white/10">
-                    {item.imagePath ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.imagePath} alt={item.name} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-[10px] text-black/40 dark:text-white/40">
-                        No photo
-                      </div>
-                    )}
-                  </div>
-                  {isSel && (
-                    <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-xs text-background">
-                      ✓
-                    </span>
-                  )}
-                  <span className="block truncate px-1.5 py-1 text-left text-[11px] leading-tight">
-                    {item.name}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <ItemPickerGrid items={items} selected={selected} onToggle={toggle} singlePerCategory />
       </div>
 
       <div className="pt-1">
