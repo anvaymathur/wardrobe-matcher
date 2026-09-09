@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getOutfit } from "@/lib/outfits";
 import { getItems } from "@/lib/items";
+import { getMatchMap } from "@/lib/pairings";
 import { updateOutfit } from "@/lib/actions";
 import { OutfitForm } from "@/app/_components/OutfitForm";
 
@@ -11,7 +12,7 @@ export default async function EditOutfitPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [outfit, items] = await Promise.all([getOutfit(id), getItems()]);
+  const [outfit, items, matches] = await Promise.all([getOutfit(id), getItems(), getMatchMap()]);
   if (!outfit) notFound();
 
   return (
@@ -34,6 +35,7 @@ export default async function EditOutfitPage({
         }}
         submitLabel="Save changes"
         singlePerCategory
+        matches={matches}
       />
     </div>
   );

@@ -27,11 +27,13 @@ export function DayPlanner({
   items,
   outfits,
   defaultSelected = [],
+  matches,
 }: {
   date: string;
   items: PickItem[];
   outfits: PlanOutfit[];
   defaultSelected?: string[];
+  matches?: Record<string, string[]>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(defaultSelected));
   const itemIds = new Set(items.map((i) => i.id));
@@ -95,7 +97,13 @@ export function DayPlanner({
           </div>
         </div>
 
-        <ItemPickerGrid items={items} selected={selected} onToggle={toggle} singlePerCategory />
+        <ItemPickerGrid
+          items={items}
+          selected={selected}
+          onToggle={toggle}
+          singlePerCategory
+          matches={matches}
+        />
       </div>
 
       <div className="pt-1">

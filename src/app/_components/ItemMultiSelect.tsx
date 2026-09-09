@@ -12,10 +12,12 @@ export function ItemMultiSelect({
   items,
   defaultSelected = [],
   singlePerCategory = false,
+  matches,
 }: {
   items: PickItem[];
   defaultSelected?: string[];
   singlePerCategory?: boolean;
+  matches?: Record<string, string[]>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(defaultSelected));
 
@@ -46,6 +48,7 @@ export function ItemMultiSelect({
         selected={selected}
         onToggle={toggle}
         singlePerCategory={singlePerCategory}
+        matches={matches}
       />
     </div>
   );

@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { getItems } from "@/lib/items";
 import { getActiveCollection } from "@/lib/collections";
+import { getMatchMap } from "@/lib/pairings";
 import { createOutfit } from "@/lib/actions";
 import { OutfitForm } from "@/app/_components/OutfitForm";
 import { CollectionBanner } from "@/app/_components/CollectionBanner";
 
 export default async function NewOutfitPage() {
   const activeCollection = await getActiveCollection();
-  const items = await getItems({ collectionId: activeCollection?.id ?? null });
+  const [items, matches] = await Promise.all([
+    getItems({ collectionId: activeCollection?.id ?? null }),
+    getMatchMap(),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
@@ -19,7 +23,7 @@ export default async function NewOutfitPage() {
       </Link>
       <h1 className="mb-6 mt-3 text-2xl font-semibold tracking-tight">New outfit</h1>
       {activeCollection && <CollectionBanner name={activeCollection.name} />}
-      <OutfitForm action={createOutfit} items={items} submitLabel="Save outfit" singlePerCategory />
+      <OutfitForm action={createOutfit} items={items} submitLabel="Save outfit" singlePerCategory matches={matches} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getItems } from "@/lib/items";
 import { getOutfits } from "@/lib/outfits";
+import { getMatchMap } from "@/lib/pairings";
 import { getPlannedDay, isValidKey, weekStartKey, dayName, monthDay } from "@/lib/planner";
 import { DayPlanner } from "@/app/_components/DayPlanner";
 
@@ -13,10 +14,11 @@ export default async function PlanDayPage({
   const { date } = await params;
   if (!isValidKey(date)) notFound();
 
-  const [items, outfits, plan] = await Promise.all([
+  const [items, outfits, plan, matches] = await Promise.all([
     getItems(),
     getOutfits(),
     getPlannedDay(date),
+    getMatchMap(),
   ]);
 
   return (
@@ -43,6 +45,7 @@ export default async function PlanDayPage({
           itemIds: o.items.map((oi) => oi.itemId),
         }))}
         defaultSelected={plan?.items.map((pi) => pi.itemId) ?? []}
+        matches={matches}
       />
     </div>
   );

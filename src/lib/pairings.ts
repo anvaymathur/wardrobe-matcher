@@ -31,6 +31,24 @@ export async function getAllPairings() {
 }
 
 /**
+ * Adjacency map of every match: itemId → the ids it's paired with. Used by the
+ * outfit/planner pickers to highlight items that go with what's already chosen.
+ */
+export async function getMatchMap(): Promise<Record<string, string[]>> {
+  const userId = await requireUserId();
+  const pairings = await prisma.pairing.findMany({
+    where: { userId },
+    select: { itemAId: true, itemBId: true },
+  });
+  const map: Record<string, string[]> = {};
+  for (const { itemAId, itemBId } of pairings) {
+    (map[itemAId] ??= []).push(itemBId);
+    (map[itemBId] ??= []).push(itemAId);
+  }
+  return map;
+}
+
+/**
  * Candidates for a new match: items in a *different* category (you pair a top
  * with a bottom, not another top) that aren't already matched with this item.
  */
