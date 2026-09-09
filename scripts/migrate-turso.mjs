@@ -40,6 +40,18 @@ const statements = [
   `CREATE INDEX IF NOT EXISTS "PlannedDay_userId_idx" ON "PlannedDay"("userId")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "PlannedDay_userId_date_key" ON "PlannedDay"("userId", "date")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "PlannedDayItem_plannedDayId_itemId_key" ON "PlannedDayItem"("plannedDayId", "itemId")`,
+
+  // Per-week "don't repeat" blocks (added 2026-09-09)
+  `CREATE TABLE IF NOT EXISTS "PlannedWeekBlock" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "week" TEXT NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "userId" TEXT,
+    CONSTRAINT "PlannedWeekBlock_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "Item" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "PlannedWeekBlock_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS "PlannedWeekBlock_userId_idx" ON "PlannedWeekBlock"("userId")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "PlannedWeekBlock_userId_week_itemId_key" ON "PlannedWeekBlock"("userId", "week", "itemId")`,
 ];
 
 // SQLite has no "ADD COLUMN IF NOT EXISTS", so add a column only when missing

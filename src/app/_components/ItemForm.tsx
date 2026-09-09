@@ -14,7 +14,6 @@ export type ItemFormDefaults = {
   notes?: string | null;
   sourceUrl?: string | null;
   imagePath?: string | null;
-  noRepeat?: boolean;
 };
 
 const inputClass =
@@ -212,7 +211,6 @@ export function ItemForm({
   const [subtype, setSubtype] = useState(defaults.subtype ?? "");
   const [color, setColor] = useState(defaults.color ?? "");
   const [notes, setNotes] = useState(defaults.notes ?? "");
-  const [noRepeat, setNoRepeat] = useState(defaults.noRepeat ?? false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -244,7 +242,6 @@ export function ItemForm({
         fd.set("subtype", subtype);
         fd.set("color", color);
         fd.set("notes", notes);
-        fd.set("noRepeat", noRepeat ? "1" : "");
         if (imageUrl) fd.set("imageUrl", imageUrl);
 
         const result = await action(fd);
@@ -327,21 +324,6 @@ export function ItemForm({
           rows={2}
           className={inputClass}
         />
-      </label>
-
-      <label className="flex items-start gap-3 rounded-md border border-black/15 p-3 text-sm dark:border-white/20">
-        <input
-          type="checkbox"
-          checked={noRepeat}
-          onChange={(e) => setNoRepeat(e.target.checked)}
-          className="mt-0.5 h-4 w-4 shrink-0 accent-current"
-        />
-        <span>
-          <span className="font-medium">Avoid wearing twice in one week</span>
-          <span className="block text-black/50 dark:text-white/50">
-            In the weekly planner, this item is faded on other days once it’s planned — so you don’t repeat it by accident.
-          </span>
-        </span>
       </label>
 
       <div className="pt-1">

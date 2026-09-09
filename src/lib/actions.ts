@@ -62,7 +62,6 @@ type ItemFields = {
   color: string | null;
   notes: string | null;
   sourceUrl: string | null;
-  noRepeat: boolean;
 };
 
 /** Validate the shared item fields, returning either the fields or an error. */
@@ -86,7 +85,6 @@ function readItemFields(
       color: text(formData, "color") || null,
       notes: text(formData, "notes") || null,
       sourceUrl: text(formData, "sourceUrl") || null,
-      noRepeat: text(formData, "noRepeat") === "1",
     },
   };
 }
@@ -381,6 +379,29 @@ export async function clearPlannedDay(formData: FormData) {
   const userId = await requireUserId();
 
   await prisma.plannedDay.deleteMany({ where: { userId, date } });
+  revalidatePath("/week");
+}
+
+/** Toggle a "don't repeat this week" block for an item, from the planner. The
+ * week is its Monday key ("YYYY-MM-DD"). */
+export async function toggleWeekBlock(formData: FormData) {
+  const week = text(formData, "week");
+  const itemId = text(formData, "itemId");
+  if (!isValidKey(week) || !itemId) throw new Error("Invalid block");
+  const userId = await requireUserId();
+
+  const owned = await prisma.item.findFirst({ where: { id: itemId, userId }, select: { id: true } });
+  if (!owned) return;
+
+  const existing = await prisma.plannedWeekBlock.findUnique({
+    where: { userId_week_itemId: { userId, week, itemId } },
+  });
+  if (existing) {
+    await prisma.plannedWeekBlock.delete({ where: { id: existing.id } });
+  } else {
+    await prisma.plannedWeekBlock.create({ data: { userId, week, itemId } });
+  }
+
   revalidatePath("/week");
 }
 

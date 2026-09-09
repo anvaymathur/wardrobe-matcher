@@ -68,3 +68,13 @@ export async function getWeek(startKey: string) {
 }
 
 export type WeekDay = Awaited<ReturnType<typeof getWeek>>[number];
+
+/** Item ids the user flagged "don't repeat" for the given week (its Monday key). */
+export async function getWeekBlocks(week: string): Promise<string[]> {
+  const userId = await requireUserId();
+  const rows = await prisma.plannedWeekBlock.findMany({
+    where: { userId, week },
+    select: { itemId: true },
+  });
+  return rows.map((r) => r.itemId);
+}

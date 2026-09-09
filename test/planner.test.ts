@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/prisma";
-import { setPlannedDay, savePlannedDayAsOutfit } from "@/lib/actions";
-import { getWeek } from "@/lib/planner";
+import { setPlannedDay, savePlannedDayAsOutfit, toggleWeekBlock } from "@/lib/actions";
+import { getWeek, getWeekBlocks } from "@/lib/planner";
 import { USER_A, USER_B } from "./setup";
+
+const MONDAY = "2026-09-07";
 
 const DATE = "2026-09-08";
 
@@ -55,6 +57,29 @@ describe("weekly planner", () => {
 
     const plan = await prisma.plannedDay.findFirst({ where: { userId: USER_A, date: DATE }, include: { items: true } });
     expect(plan?.items.map((i) => i.itemId)).toEqual([mine]);
+  });
+
+  it("toggles a per-week no-repeat block on and off", async () => {
+    const [a] = await seedItems(USER_A, ["Tee"]);
+    const block = (id: string) => {
+      const fd = new FormData();
+      fd.set("week", MONDAY);
+      fd.set("itemId", id);
+      return toggleWeekBlock(fd);
+    };
+    await block(a);
+    expect(await getWeekBlocks(MONDAY)).toEqual([a]);
+    await block(a); // toggle off
+    expect(await getWeekBlocks(MONDAY)).toEqual([]);
+  });
+
+  it("won't block an item the user doesn't own", async () => {
+    const [theirs] = await seedItems(USER_B, ["Theirs"]);
+    const fd = new FormData();
+    fd.set("week", MONDAY);
+    fd.set("itemId", theirs);
+    await toggleWeekBlock(fd); // acting as USER_A
+    expect(await getWeekBlocks(MONDAY)).toEqual([]);
   });
 
   it("saves a planned day to the Outfits tab", async () => {

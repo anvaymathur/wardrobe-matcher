@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getItems } from "@/lib/items";
 import { getOutfits } from "@/lib/outfits";
 import { getMatchMap } from "@/lib/pairings";
-import { getWeek, isValidKey, weekStartKey, dayName, monthDay } from "@/lib/planner";
+import { getWeek, getWeekBlocks, isValidKey, weekStartKey, dayName, monthDay } from "@/lib/planner";
 import { DayPlanner } from "@/app/_components/DayPlanner";
 
 export default async function PlanDayPage({
@@ -14,11 +14,13 @@ export default async function PlanDayPage({
   const { date } = await params;
   if (!isValidKey(date)) notFound();
 
-  const [items, outfits, week, matches] = await Promise.all([
+  const weekStart = weekStartKey(date);
+  const [items, outfits, week, matches, weekBlocks] = await Promise.all([
     getItems(),
     getOutfits(),
-    getWeek(weekStartKey(date)),
+    getWeek(weekStart),
     getMatchMap(),
+    getWeekBlocks(weekStart),
   ]);
 
   const plan = week.find((d) => d.date === date)?.plan ?? null;
@@ -50,6 +52,7 @@ export default async function PlanDayPage({
 
       <DayPlanner
         date={date}
+        week={weekStart}
         items={items}
         outfits={outfits.map((o) => ({
           id: o.id,
@@ -59,6 +62,7 @@ export default async function PlanDayPage({
         defaultSelected={plan?.items.map((pi) => pi.itemId) ?? []}
         matches={matches}
         plannedElsewhere={plannedElsewhere}
+        initialBlocked={weekBlocks}
       />
     </div>
   );

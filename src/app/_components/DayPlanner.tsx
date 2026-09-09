@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { setPlannedDay } from "@/lib/actions";
+import { setPlannedDay, toggleWeekBlock } from "@/lib/actions";
 import { ItemPickerGrid, applyToggle, type PickItem } from "./ItemPickerGrid";
 
 export type PlanOutfit = { id: string; name: string; itemIds: string[] };
@@ -24,24 +24,47 @@ function SaveButton() {
  * fine-tune. Selected ids are submitted as hidden "itemId" inputs. */
 export function DayPlanner({
   date,
+  week,
   items,
   outfits,
   defaultSelected = [],
   matches,
   plannedElsewhere,
+  initialBlocked = [],
 }: {
   date: string;
+  week: string;
   items: PickItem[];
   outfits: PlanOutfit[];
   defaultSelected?: string[];
   matches?: Record<string, string[]>;
   plannedElsewhere?: Record<string, string[]>;
+  initialBlocked?: string[];
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(defaultSelected));
+  const [blocked, setBlocked] = useState<Set<string>>(new Set(initialBlocked));
+  const [, startBlockTransition] = useTransition();
   const itemIds = new Set(items.map((i) => i.id));
 
   // A day is a single outfit, so keep at most one item per clothing type.
   const toggle = (id: string) => setSelected((prev) => applyToggle(prev, id, items, true));
+
+  // Right-click / long-press: flag "don't repeat" for this week. Optimistic in
+  // the UI, persisted via the Server Action.
+  const toggleBlock = (id: string) => {
+    setBlocked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    const fd = new FormData();
+    fd.set("week", week);
+    fd.set("itemId", id);
+    startBlockTransition(() => {
+      void toggleWeekBlock(fd);
+    });
+  };
 
   // Start from a saved outfit: select exactly its items that still exist.
   const applyOutfit = (o: PlanOutfit) =>
@@ -106,6 +129,8 @@ export function DayPlanner({
           singlePerCategory
           matches={matches}
           plannedElsewhere={plannedElsewhere}
+          blocked={blocked}
+          onToggleBlock={toggleBlock}
         />
       </div>
 

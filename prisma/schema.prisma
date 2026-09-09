@@ -23,6 +23,7 @@ model User {
   outfits     Outfit[]
   collections Collection[]
   plannedDays PlannedDay[]
+  weekBlocks  PlannedWeekBlock[]
 }
 
 model Item {
@@ -35,7 +36,7 @@ model Item {
   sourceUrl String? // store link, for v2 auto-image import
   notes     String?
   favorite  Boolean  @default(false)
-  noRepeat  Boolean  @default(false) // flag: avoid scheduling twice in one week
+  noRepeat  Boolean  @default(false) // deprecated/unused — superseded by PlannedWeekBlock
   createdAt DateTime @default(now())
 
   // Nullable so the migration is clean on existing rows; the app always sets it.
@@ -47,6 +48,7 @@ model Item {
   outfits     OutfitItem[]
   collections CollectionItem[]
   plannedDays PlannedDayItem[]
+  weekBlocks  PlannedWeekBlock[]
 
   @@index([userId])
 }
@@ -137,4 +139,19 @@ model PlannedDayItem {
   itemId       String
 
   @@unique([plannedDayId, itemId]) // an item appears once per day
+}
+
+// A "don't wear twice this week" flag set from the planner, scoped to one week
+// (its Monday, "YYYY-MM-DD"). Blocks the item on the week's other days.
+model PlannedWeekBlock {
+  id     String @id @default(uuid())
+  week   String
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId String
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+
+  @@unique([userId, week, itemId])
+  @@index([userId])
 }
