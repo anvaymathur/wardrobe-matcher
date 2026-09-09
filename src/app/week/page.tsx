@@ -16,12 +16,12 @@ const TINT: Record<string, string> = {
  * anonymous grey box. */
 function DayItems({ items }: { items: NonNullable<WeekDay["plan"]>["items"] }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-2">
       {items.map(({ item }) =>
         item.imagePath ? (
           <div
             key={item.id}
-            className="h-12 w-12 shrink-0 overflow-hidden rounded bg-black/5 dark:bg-white/10"
+            className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={item.imagePath} alt={item.name} className="h-full w-full object-cover" />
@@ -30,11 +30,11 @@ function DayItems({ items }: { items: NonNullable<WeekDay["plan"]>["items"] }) {
           <span
             key={item.id}
             title={item.name}
-            className={`flex h-12 max-w-[9rem] items-center rounded px-2 text-[11px] font-medium leading-tight ${
+            className={`flex h-20 w-20 items-center justify-center rounded-lg p-1.5 text-center text-xs font-medium leading-tight ${
               TINT[item.category] ?? "bg-black/5 dark:bg-white/10"
             }`}
           >
-            <span className="line-clamp-2">{item.name}</span>
+            <span className="line-clamp-3">{item.name}</span>
           </span>
         ),
       )}
@@ -56,9 +56,6 @@ export default async function WeekPage({
   const prev = addDays(start, -7);
   const next = addDays(start, 7);
 
-  const navLink =
-    "rounded-full border border-black/15 px-3 py-1.5 text-sm hover:border-foreground dark:border-white/20";
-
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-4 flex items-center justify-between gap-4">
@@ -73,20 +70,10 @@ export default async function WeekPage({
         )}
       </div>
 
-      {/* Mobile: just the centered week label (swipe to change). Desktop: arrows. */}
-      <div className="mb-6 flex items-center justify-center gap-3 sm:justify-between">
-        <Link href={`/week?start=${prev}`} className={`hidden sm:inline-flex ${navLink}`} aria-label="Previous week">
-          ← Prev
-        </Link>
-        <div className="text-center">
-          <span className="text-sm font-medium text-black/70 dark:text-white/70">{weekLabel(start)}</span>
-          <span className="mt-0.5 block text-xs text-black/35 dark:text-white/35 sm:hidden">
-            Swipe to change weeks
-          </span>
-        </div>
-        <Link href={`/week?start=${next}`} className={`hidden sm:inline-flex ${navLink}`} aria-label="Next week">
-          Next →
-        </Link>
+      {/* Week label; the arrows live at the screen edges (in WeekNav), and you
+          can swipe to change weeks. */}
+      <div className="mb-6 text-center">
+        <span className="text-sm font-medium text-black/70 dark:text-white/70">{weekLabel(start)}</span>
       </div>
 
       <WeekNav prevStart={prev} nextStart={next} currentStart={start} todayStart={thisWeekStart}>
@@ -120,7 +107,7 @@ export default async function WeekPage({
                     </Link>
 
                     {plan!.note && (
-                      <p className="rounded-md bg-amber-100/70 px-2.5 py-1.5 text-sm leading-snug text-amber-900 dark:bg-amber-500/15 dark:text-amber-100">
+                      <p className="border-l-2 border-amber-400/70 pl-2.5 text-sm italic leading-snug text-black/55 dark:border-amber-400/50 dark:text-white/55">
                         {plan!.note}
                       </p>
                     )}
