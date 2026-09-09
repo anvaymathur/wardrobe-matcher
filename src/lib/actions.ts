@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/currentUser";
 import { deleteImage } from "@/lib/storage";
 import { isCategory, isValidTier } from "@/lib/types";
-import { isValidKey, weekStartKey } from "@/lib/planner";
+import { isValidKey, weekStartKey, getPlansForRange } from "@/lib/planner";
 
 function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -386,6 +386,13 @@ export async function clearPlannedDay(formData: FormData) {
 
   await prisma.plannedDay.deleteMany({ where: { userId, date } });
   revalidatePath("/week");
+}
+
+/** Plans for one week, fetched in the background as you swipe past the window
+ * the page was rendered with. */
+export async function loadWeekPlans(startKey: string) {
+  if (!isValidKey(startKey)) throw new Error("Invalid week");
+  return getPlansForRange(startKey, 1);
 }
 
 /** Toggle a "don't repeat this week" block for an item, from the planner. The

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { setPlannedDay, savePlannedDayAsOutfit, toggleWeekBlock } from "@/lib/actions";
-import { getWeek, getWeekBlocks, getPlannedDay } from "@/lib/planner";
+import { getWeek, getWeekBlocks, getPlannedDay, getPlansForRange, addDays } from "@/lib/planner";
 import { USER_A, USER_B } from "./setup";
 
 const MONDAY = "2026-09-07";
@@ -64,6 +64,21 @@ describe("weekly planner", () => {
     await setPlannedDay(planForm(DATE, [a], "")); // empty note clears it
     plan = await getPlannedDay(DATE);
     expect(plan?.note).toBeNull();
+  });
+
+  it("fetches a multi-week window in one map, keyed by date", async () => {
+    const [a] = await seedItems(USER_A, ["Tee"]);
+    await setPlannedDay(planForm(DATE, [a], "swim day"));
+    // A day in the following week, to prove the range spans past one week.
+    await setPlannedDay(planForm("2026-09-16", [a]));
+
+    const range = await getPlansForRange(MONDAY, 3);
+    expect(Object.keys(range).sort()).toEqual([DATE, "2026-09-16"]);
+    expect(range[DATE].note).toBe("swim day");
+    expect(range[DATE].items.map((i) => i.id)).toEqual([a]);
+
+    // Weeks outside the window aren't included.
+    expect(await getPlansForRange(addDays(MONDAY, 21), 1)).toEqual({});
   });
 
   it("ignores item ids the user doesn't own", async () => {

@@ -54,14 +54,3 @@ body {
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0.08);
   }
 }
-
-/* Week view: directional enter for the day list after changing weeks, so a new
-   week reads as sliding in from the direction you moved. */
-@keyframes weekInFromRight {
-  from { opacity: 0; transform: translateX(28px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes weekInFromLeft {
-  from { opacity: 0; transform: translateX(-28px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
