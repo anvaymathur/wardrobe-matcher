@@ -4,8 +4,17 @@ import { getPairingsForItem } from "@/lib/pairings";
 import { MIN_TIER, MAX_TIER } from "@/lib/types";
 import { OutfitPicker } from "@/app/_components/OutfitPicker";
 
-const tierLabel = (t: number) => (t === 1 ? "Tier 1 · best match" : `Tier ${t}`);
+const tierLabel = (t: number) =>
+  t === 1 ? "Best matches" : t === 2 ? "Good matches" : "Also works";
 const catLabel = (c: string) => c.charAt(0) + c.slice(1).toLowerCase();
+
+// Per-type tint for photo-less items, matching the item page's match editor.
+const TINT: Record<string, string> = {
+  TOP: "bg-sky-100 text-sky-900 dark:bg-sky-500/20 dark:text-sky-50",
+  BOTTOM: "bg-violet-100 text-violet-900 dark:bg-violet-500/20 dark:text-violet-50",
+  OUTERWEAR: "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-50",
+  SHOES: "bg-rose-100 text-rose-900 dark:bg-rose-500/20 dark:text-rose-50",
+};
 
 export default async function BuilderPage({
   searchParams,
@@ -85,10 +94,7 @@ export default async function BuilderPage({
                               key={pairingId}
                               className="flex flex-col overflow-hidden rounded-lg border border-black/10 transition-colors hover:border-foreground dark:border-white/15"
                             >
-                              <Link
-                                href={`/items/${item.id}`}
-                                className="block aspect-square min-h-0 bg-black/5 dark:bg-white/10"
-                              >
+                              <Link href={`/items/${item.id}`} className="block aspect-square min-h-0">
                                 {item.imagePath ? (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img
@@ -97,8 +103,17 @@ export default async function BuilderPage({
                                     className="h-full w-full object-cover"
                                   />
                                 ) : (
-                                  <div className="flex h-full items-center justify-center text-xs text-black/40 dark:text-white/40">
-                                    No photo
+                                  <div
+                                    className={`flex h-full flex-col items-center justify-center gap-1 px-2 text-center ${
+                                      TINT[item.category] ?? "bg-black/5 dark:bg-white/10"
+                                    }`}
+                                  >
+                                    <span className="text-3xl font-semibold leading-none">
+                                      {item.name.charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="text-[10px] uppercase tracking-wide opacity-70">
+                                      {item.subtype}
+                                    </span>
                                   </div>
                                 )}
                               </Link>

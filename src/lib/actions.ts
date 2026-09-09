@@ -207,15 +207,20 @@ export async function createPairing(formData: FormData) {
   revalidatePath(`/items/${otherId}`);
 }
 
-export async function deletePairing(formData: FormData) {
-  const pairingId = text(formData, "pairingId");
+/** Remove the match between two items, addressed by the item ids (the pair is
+ * stored once under a normalized id order). Lets the visual match editor toggle
+ * a match off without tracking the pairing's own id. */
+export async function unpairItems(formData: FormData) {
   const itemId = text(formData, "itemId");
-  if (!pairingId) throw new Error("Missing pairing id");
+  const otherId = text(formData, "otherId");
+  if (!itemId || !otherId) throw new Error("Missing item id");
   const userId = await requireUserId();
 
-  await prisma.pairing.deleteMany({ where: { id: pairingId, userId } });
+  const [itemAId, itemBId] = [itemId, otherId].sort();
+  await prisma.pairing.deleteMany({ where: { userId, itemAId, itemBId } });
 
-  if (itemId) revalidatePath(`/items/${itemId}`);
+  revalidatePath(`/items/${itemId}`);
+  revalidatePath(`/items/${otherId}`);
 }
 
 export async function toggleFavorite(formData: FormData) {
