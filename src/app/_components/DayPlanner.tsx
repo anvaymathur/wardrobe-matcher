@@ -28,6 +28,7 @@ export function DayPlanner({
   items,
   outfits,
   defaultSelected = [],
+  defaultNote = "",
   matches,
   plannedElsewhere,
   initialBlocked = [],
@@ -37,6 +38,7 @@ export function DayPlanner({
   items: PickItem[];
   outfits: PlanOutfit[];
   defaultSelected?: string[];
+  defaultNote?: string;
   matches?: Record<string, string[]>;
   plannedElsewhere?: Record<string, string[]>;
   initialBlocked?: string[];
@@ -131,6 +133,21 @@ export function DayPlanner({
           plannedElsewhere={plannedElsewhere}
           blocked={blocked}
           onToggleBlock={toggleBlock}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="note" className="mb-2 block text-sm font-medium">
+          Notes <span className="font-normal text-black/40 dark:text-white/40">· optional</span>
+        </label>
+        <textarea
+          id="note"
+          name="note"
+          rows={2}
+          maxLength={280}
+          defaultValue={defaultNote}
+          placeholder="Why this outfit? e.g. dinner with friends, matches the new jacket…"
+          className="w-full resize-y rounded-lg border border-black/15 bg-background px-3 py-2 text-sm outline-none placeholder:text-black/35 focus:border-foreground dark:border-white/20 dark:placeholder:text-white/30"
         />
       </div>
 

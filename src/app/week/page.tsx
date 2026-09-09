@@ -1,25 +1,42 @@
 import Link from "next/link";
-import { getWeek, todayKey, weekStartKey, addDays, dayName, monthDay, weekLabel, isValidKey } from "@/lib/planner";
+import { getWeek, todayKey, weekStartKey, addDays, dayName, monthDay, weekLabel, isValidKey, type WeekDay } from "@/lib/planner";
 import { clearPlannedDay, savePlannedDayAsOutfit } from "@/lib/actions";
+import { WeekNav } from "@/app/_components/WeekNav";
 
-function Thumbs({ images }: { images: (string | null)[] }) {
-  const shown = images.slice(0, 4);
-  const extra = images.length - shown.length;
+// Per-type tint for photo-less items, matching the rest of the app.
+const TINT: Record<string, string> = {
+  TOP: "bg-sky-100 text-sky-900 dark:bg-sky-500/20 dark:text-sky-50",
+  BOTTOM: "bg-violet-100 text-violet-900 dark:bg-violet-500/20 dark:text-violet-50",
+  OUTERWEAR: "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-50",
+  SHOES: "bg-rose-100 text-rose-900 dark:bg-rose-500/20 dark:text-rose-50",
+};
+
+/** A day's items: a photo becomes a square thumbnail; a photo-less item becomes
+ * a tinted chip showing its full name, so it stays identifiable instead of an
+ * anonymous grey box. */
+function DayItems({ items }: { items: NonNullable<WeekDay["plan"]>["items"] }) {
   return (
-    <div className="flex items-center gap-1.5">
-      {shown.map((src, i) => (
-        <div
-          key={i}
-          className="h-12 w-12 shrink-0 overflow-hidden rounded bg-black/5 dark:bg-white/10"
-        >
-          {src ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt="" className="h-full w-full object-cover" />
-          ) : null}
-        </div>
-      ))}
-      {extra > 0 && (
-        <span className="text-xs text-black/50 dark:text-white/50">+{extra}</span>
+    <div className="flex flex-wrap items-center gap-1.5">
+      {items.map(({ item }) =>
+        item.imagePath ? (
+          <div
+            key={item.id}
+            className="h-12 w-12 shrink-0 overflow-hidden rounded bg-black/5 dark:bg-white/10"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={item.imagePath} alt={item.name} className="h-full w-full object-cover" />
+          </div>
+        ) : (
+          <span
+            key={item.id}
+            title={item.name}
+            className={`flex h-12 max-w-[9rem] items-center rounded px-2 text-[11px] font-medium leading-tight ${
+              TINT[item.category] ?? "bg-black/5 dark:bg-white/10"
+            }`}
+          >
+            <span className="line-clamp-2">{item.name}</span>
+          </span>
+        ),
       )}
     </div>
   );
@@ -49,84 +66,97 @@ export default async function WeekPage({
         {start !== thisWeekStart && (
           <Link
             href="/week"
-            className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
+            className="hidden rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90 sm:inline-flex"
           >
             Today
           </Link>
         )}
       </div>
 
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <Link href={`/week?start=${prev}`} className={navLink} aria-label="Previous week">
+      {/* Mobile: just the centered week label (swipe to change). Desktop: arrows. */}
+      <div className="mb-6 flex items-center justify-center gap-3 sm:justify-between">
+        <Link href={`/week?start=${prev}`} className={`hidden sm:inline-flex ${navLink}`} aria-label="Previous week">
           ← Prev
         </Link>
-        <span className="text-sm font-medium text-black/70 dark:text-white/70">{weekLabel(start)}</span>
-        <Link href={`/week?start=${next}`} className={navLink} aria-label="Next week">
+        <div className="text-center">
+          <span className="text-sm font-medium text-black/70 dark:text-white/70">{weekLabel(start)}</span>
+          <span className="mt-0.5 block text-xs text-black/35 dark:text-white/35 sm:hidden">
+            Swipe to change weeks
+          </span>
+        </div>
+        <Link href={`/week?start=${next}`} className={`hidden sm:inline-flex ${navLink}`} aria-label="Next week">
           Next →
         </Link>
       </div>
 
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {week.map(({ date, plan }) => {
-          const count = plan?.items.length ?? 0;
-          const isToday = date === today;
-          return (
-            <li
-              key={date}
-              className={`flex flex-col gap-3 rounded-lg border p-4 ${
-                isToday
-                  ? "border-foreground"
-                  : "border-black/10 dark:border-white/15"
-              }`}
-            >
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="font-medium">
-                  {dayName(date)}{" "}
-                  <span className="text-black/50 dark:text-white/50">{monthDay(date)}</span>
-                </span>
-                {isToday && (
-                  <span className="rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background">
-                    Today
+      <WeekNav prevStart={prev} nextStart={next} currentStart={start} todayStart={thisWeekStart}>
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {week.map(({ date, plan }) => {
+            const count = plan?.items.length ?? 0;
+            const isToday = date === today;
+            return (
+              <li
+                key={date}
+                className={`flex flex-col gap-3 rounded-lg border p-4 ${
+                  isToday ? "border-foreground" : "border-black/10 dark:border-white/15"
+                }`}
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-medium">
+                    {dayName(date)}{" "}
+                    <span className="text-black/50 dark:text-white/50">{monthDay(date)}</span>
                   </span>
-                )}
-              </div>
+                  {isToday && (
+                    <span className="rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background">
+                      Today
+                    </span>
+                  )}
+                </div>
 
-              {count > 0 ? (
-                <>
-                  <Link href={`/week/${date}`} className="block">
-                    <Thumbs images={plan!.items.map((pi) => pi.item.imagePath)} />
-                  </Link>
-                  <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                    <Link href={`/week/${date}`} className="font-medium text-black/70 hover:underline dark:text-white/70">
-                      Edit
+                {count > 0 ? (
+                  <>
+                    <Link href={`/week/${date}`} className="block">
+                      <DayItems items={plan!.items} />
                     </Link>
-                    <form action={savePlannedDayAsOutfit}>
-                      <input type="hidden" name="date" value={date} />
-                      <input type="hidden" name="name" value={`${dayName(date)} · ${monthDay(date)}`} />
-                      <button type="submit" className="font-medium text-black/70 hover:underline dark:text-white/70">
-                        Save to outfits
-                      </button>
-                    </form>
-                    <form action={clearPlannedDay}>
-                      <input type="hidden" name="date" value={date} />
-                      <button type="submit" className="font-medium text-red-600 hover:underline dark:text-red-400">
-                        Clear
-                      </button>
-                    </form>
-                  </div>
-                </>
-              ) : (
-                <Link
-                  href={`/week/${date}`}
-                  className="flex items-center justify-center rounded-md border border-dashed border-black/20 py-4 text-sm text-black/50 hover:border-foreground hover:text-foreground dark:border-white/25 dark:text-white/50"
-                >
-                  + Plan this day
-                </Link>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+
+                    {plan!.note && (
+                      <p className="rounded-md bg-amber-100/70 px-2.5 py-1.5 text-sm leading-snug text-amber-900 dark:bg-amber-500/15 dark:text-amber-100">
+                        {plan!.note}
+                      </p>
+                    )}
+
+                    <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                      <Link href={`/week/${date}`} className="font-medium text-black/70 hover:underline dark:text-white/70">
+                        Edit
+                      </Link>
+                      <form action={savePlannedDayAsOutfit}>
+                        <input type="hidden" name="date" value={date} />
+                        <input type="hidden" name="name" value={`${dayName(date)} · ${monthDay(date)}`} />
+                        <button type="submit" className="font-medium text-black/70 hover:underline dark:text-white/70">
+                          Save to outfits
+                        </button>
+                      </form>
+                      <form action={clearPlannedDay}>
+                        <input type="hidden" name="date" value={date} />
+                        <button type="submit" className="font-medium text-red-600 hover:underline dark:text-red-400">
+                          Clear
+                        </button>
+                      </form>
+                    </div>
+                  </>
+                ) : (
+                  <Link
+                    href={`/week/${date}`}
+                    className="flex items-center justify-center rounded-md border border-dashed border-black/20 py-4 text-sm text-black/50 hover:border-foreground hover:text-foreground dark:border-white/25 dark:text-white/50"
+                  >
+                    + Plan this day
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </WeekNav>
     </div>
   );
 }

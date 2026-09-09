@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { setPlannedDay, savePlannedDayAsOutfit, toggleWeekBlock } from "@/lib/actions";
-import { getWeek, getWeekBlocks } from "@/lib/planner";
+import { getWeek, getWeekBlocks, getPlannedDay } from "@/lib/planner";
 import { USER_A, USER_B } from "./setup";
 
 const MONDAY = "2026-09-07";
@@ -19,9 +19,10 @@ async function seedItems(userId: string, names: string[]) {
   return ids;
 }
 
-function planForm(date: string, itemIds: string[]): FormData {
+function planForm(date: string, itemIds: string[], note?: string): FormData {
   const fd = new FormData();
   fd.set("date", date);
+  if (note !== undefined) fd.set("note", note);
   for (const id of itemIds) fd.append("itemId", id);
   return fd;
 }
@@ -48,6 +49,21 @@ describe("weekly planner", () => {
     await setPlannedDay(planForm(DATE, [])); // clear
     plan = await prisma.plannedDay.findFirst({ where: { userId: USER_A, date: DATE }, include: { items: true } });
     expect(plan).toBeNull();
+  });
+
+  it("saves a day note and updates it on re-save", async () => {
+    const [a] = await seedItems(USER_A, ["Tee"]);
+    await setPlannedDay(planForm(DATE, [a], "dinner with friends"));
+    let plan = await getPlannedDay(DATE);
+    expect(plan?.note).toBe("dinner with friends");
+
+    await setPlannedDay(planForm(DATE, [a], "changed my mind"));
+    plan = await getPlannedDay(DATE);
+    expect(plan?.note).toBe("changed my mind");
+
+    await setPlannedDay(planForm(DATE, [a], "")); // empty note clears it
+    plan = await getPlannedDay(DATE);
+    expect(plan?.note).toBeNull();
   });
 
   it("ignores item ids the user doesn't own", async () => {

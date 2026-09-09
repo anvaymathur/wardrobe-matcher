@@ -121,6 +121,7 @@ model CollectionItem {
 model PlannedDay {
   id        String           @id @default(uuid())
   date      String
+  note      String?
   createdAt DateTime         @default(now())
   items     PlannedDayItem[]
 

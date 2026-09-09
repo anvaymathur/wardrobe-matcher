@@ -60,6 +60,7 @@ export default async function PlanDayPage({
           itemIds: o.items.map((oi) => oi.itemId),
         }))}
         defaultSelected={plan?.items.map((pi) => pi.itemId) ?? []}
+        defaultNote={plan?.note ?? ""}
         matches={matches}
         plannedElsewhere={plannedElsewhere}
         initialBlocked={weekBlocks}

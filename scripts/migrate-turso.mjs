@@ -68,5 +68,6 @@ for (const sql of statements) {
 }
 // Column additions (idempotent).
 await ensureColumn(db, "Item", "noRepeat", `"noRepeat" BOOLEAN NOT NULL DEFAULT false`);
+await ensureColumn(db, "PlannedDay", "note", `"note" TEXT`);
 
 console.log("[migrate-turso] Schema ensured on the remote database.");

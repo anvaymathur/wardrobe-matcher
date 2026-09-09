@@ -358,14 +358,15 @@ export async function setPlannedDay(formData: FormData) {
   if (!isValidKey(date)) throw new Error("Invalid date");
   const userId = await requireUserId();
   const itemIds = await ownedItemIds(userId, selectedItemIds(formData));
+  const note = text(formData, "note").slice(0, 280) || null;
 
   if (itemIds.length === 0) {
     await prisma.plannedDay.deleteMany({ where: { userId, date } });
   } else {
     const day = await prisma.plannedDay.upsert({
       where: { userId_date: { userId, date } },
-      create: { userId, date },
-      update: {},
+      create: { userId, date, note },
+      update: { note },
     });
     await prisma.plannedDayItem.deleteMany({ where: { plannedDayId: day.id } });
     await prisma.plannedDayItem.createMany({
