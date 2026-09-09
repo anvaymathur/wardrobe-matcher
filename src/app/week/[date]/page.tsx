@@ -23,12 +23,13 @@ export default async function PlanDayPage({
 
   const plan = week.find((d) => d.date === date)?.plan ?? null;
 
-  // Items already scheduled on other days this week → flag so you don't repeat.
-  const plannedElsewhere: Record<string, string> = {};
+  // Which other days this week each item is planned on (shown as info badges;
+  // items flagged "no repeat" also get blocked from being re-picked).
+  const plannedElsewhere: Record<string, string[]> = {};
   for (const { date: d, plan: p } of week) {
     if (d === date || !p) continue;
     for (const pi of p.items) {
-      if (!plannedElsewhere[pi.itemId]) plannedElsewhere[pi.itemId] = dayName(d);
+      (plannedElsewhere[pi.itemId] ??= []).push(dayName(d));
     }
   }
 

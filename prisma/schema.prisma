@@ -35,6 +35,7 @@ model Item {
   sourceUrl String? // store link, for v2 auto-image import
   notes     String?
   favorite  Boolean  @default(false)
+  noRepeat  Boolean  @default(false) // flag: avoid scheduling twice in one week
   createdAt DateTime @default(now())
 
   // Nullable so the migration is clean on existing rows; the app always sets it.

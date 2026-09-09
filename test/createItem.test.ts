@@ -47,6 +47,16 @@ describe("createItem", () => {
     expect(await prisma.item.count({ where: { name: "Ghost" } })).toBe(1);
   });
 
+  it("stores the no-repeat flag (default false, true when set)", async () => {
+    await createItem(itemForm({ name: "Jeans", category: "BOTTOM", subtype: "jeans" }));
+    const jeans = await prisma.item.findFirst({ where: { name: "Jeans" } });
+    expect(jeans?.noRepeat).toBe(false);
+
+    await createItem(itemForm({ name: "Graphic Tee", category: "TOP", subtype: "tee", noRepeat: "1" }));
+    const tee = await prisma.item.findFirst({ where: { name: "Graphic Tee" } });
+    expect(tee?.noRepeat).toBe(true);
+  });
+
   it("returns an error (and creates nothing) when a required field is missing", async () => {
     const res = await createItem(itemForm({ name: "", category: "TOP", subtype: "tee" }));
     expect(res).toEqual({ error: "Name is required" });

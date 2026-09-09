@@ -62,6 +62,7 @@ type ItemFields = {
   color: string | null;
   notes: string | null;
   sourceUrl: string | null;
+  noRepeat: boolean;
 };
 
 /** Validate the shared item fields, returning either the fields or an error. */
@@ -85,6 +86,7 @@ function readItemFields(
       color: text(formData, "color") || null,
       notes: text(formData, "notes") || null,
       sourceUrl: text(formData, "sourceUrl") || null,
+      noRepeat: text(formData, "noRepeat") === "1",
     },
   };
 }

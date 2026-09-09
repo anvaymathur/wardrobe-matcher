@@ -8,6 +8,7 @@ export type PickItem = {
   imagePath: string | null;
   subtype: string;
   category: string;
+  noRepeat?: boolean;
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -61,20 +62,26 @@ export function ItemPickerGrid({
   onToggle: (id: string) => void;
   singlePerCategory?: boolean;
   matches?: Record<string, string[]>;
-  /** itemId → a short day label (e.g. "Tue") it's already planned on this week. */
-  plannedElsewhere?: Record<string, string>;
+  /** itemId → the day labels (e.g. ["Tue"]) it's already planned on this week. */
+  plannedElsewhere?: Record<string, string[]>;
 }) {
   const selectedItems = items.filter((i) => selected.has(i.id));
+  const byId = new Map(items.map((i) => [i.id, i]));
 
   // Which categories already have a pick (for the dimming cue).
   const pickedCategories = new Set(selectedItems.map((i) => i.category));
 
+  // "Blocked" = flagged no-repeat AND already planned another day this week.
+  const isBlocked = (id: string) =>
+    Boolean(byId.get(id)?.noRepeat) && Boolean(plannedElsewhere?.[id]?.length);
+
   // An item is "recommended" when it pairs with every already-chosen item in a
   // different type — so as you pick, only mutually-matching items stay lit.
+  // Blocked items are skipped so they read as unavailable, not suggested.
   const recommended = new Set<string>();
   if (matches) {
     for (const item of items) {
-      if (selected.has(item.id) || plannedElsewhere?.[item.id]) continue;
+      if (selected.has(item.id) || isBlocked(item.id)) continue;
       const others = selectedItems.filter((s) => s.category !== item.category);
       if (others.length === 0) continue;
       const paired = matches[item.id] ?? [];
@@ -97,8 +104,9 @@ export function ItemPickerGrid({
         </p>
       )}
       {plannedElsewhere && Object.keys(plannedElsewhere).length > 0 && (
-        <p className="-mb-2 text-xs text-amber-600 dark:text-amber-400">
-          Faded items are already planned another day this week.
+        <p className="-mb-2 text-xs text-black/45 dark:text-white/45">
+          Day badges mark items already planned this week; a faded, outlined one
+          is flagged not to repeat.
         </p>
       )}
       {groups.map((group) => (
@@ -109,10 +117,16 @@ export function ItemPickerGrid({
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {group.items.map((item) => {
               const isSel = selected.has(item.id);
-              const plannedDay = !isSel ? plannedElsewhere?.[item.id] : undefined;
+              const plannedDays = !isSel ? plannedElsewhere?.[item.id] : undefined;
+              const plannedLabel =
+                plannedDays && plannedDays.length > 0
+                  ? plannedDays.length <= 2
+                    ? plannedDays.join(", ")
+                    : `${plannedDays[0]} +${plannedDays.length - 1}`
+                  : undefined;
+              const blocked = Boolean(plannedLabel) && Boolean(item.noRepeat);
               const dimmed =
-                (singlePerCategory && !isSel && pickedCategories.has(item.category)) ||
-                Boolean(plannedDay);
+                (singlePerCategory && !isSel && pickedCategories.has(item.category)) || blocked;
               const isMatch = !isSel && !dimmed && recommended.has(item.id);
               return (
                 <li key={item.id}>
@@ -123,10 +137,10 @@ export function ItemPickerGrid({
                     className={`relative block w-full overflow-hidden rounded-lg border-2 transition ${
                       isSel
                         ? "border-foreground"
-                        : isMatch
-                          ? "border-emerald-500"
-                          : plannedDay
-                            ? "border-amber-500"
+                        : blocked
+                          ? "border-amber-500"
+                          : isMatch
+                            ? "border-emerald-500"
                             : "border-transparent"
                     } ${dimmed ? "opacity-40" : ""}`}
                   >
@@ -145,9 +159,13 @@ export function ItemPickerGrid({
                         ✓
                       </span>
                     )}
-                    {plannedDay ? (
-                      <span className="absolute left-1 top-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none text-white">
-                        {plannedDay}
+                    {plannedLabel ? (
+                      <span
+                        className={`absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none text-white ${
+                          blocked ? "bg-amber-500" : "bg-black/60 dark:bg-white/70 dark:text-black"
+                        }`}
+                      >
+                        {plannedLabel}
                       </span>
                     ) : isMatch ? (
                       <span className="absolute left-1 top-1 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none text-white">

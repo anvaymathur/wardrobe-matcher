@@ -42,8 +42,19 @@ const statements = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "PlannedDayItem_plannedDayId_itemId_key" ON "PlannedDayItem"("plannedDayId", "itemId")`,
 ];
 
+// SQLite has no "ADD COLUMN IF NOT EXISTS", so add a column only when missing
+// (a plain ADD COLUMN — never a destructive table rebuild on live data).
+async function ensureColumn(db, table, column, ddl) {
+  const info = await db.execute(`PRAGMA table_info("${table}")`);
+  const exists = info.rows.some((r) => r.name === column);
+  if (!exists) await db.execute(`ALTER TABLE "${table}" ADD COLUMN ${ddl}`);
+}
+
 const db = createClient({ url, authToken });
 for (const sql of statements) {
   await db.execute(sql);
 }
+// Column additions (idempotent).
+await ensureColumn(db, "Item", "noRepeat", `"noRepeat" BOOLEAN NOT NULL DEFAULT false`);
+
 console.log("[migrate-turso] Schema ensured on the remote database.");
