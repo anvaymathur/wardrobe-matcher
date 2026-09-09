@@ -388,6 +388,45 @@ export async function clearPlannedDay(formData: FormData) {
   revalidatePath("/week");
 }
 
+/**
+ * Swap what's planned on two days. The whole plan row moves, so the items and
+ * the note travel together. If only one of the days has a plan, this just moves
+ * it across (leaving the other day empty).
+ */
+export async function swapPlannedDays(dateA: string, dateB: string) {
+  if (!isValidKey(dateA) || !isValidKey(dateB)) throw new Error("Invalid date");
+  if (dateA === dateB) return;
+  const userId = await requireUserId();
+
+  const [a, b] = await Promise.all([
+    prisma.plannedDay.findUnique({
+      where: { userId_date: { userId, date: dateA } },
+      select: { id: true },
+    }),
+    prisma.plannedDay.findUnique({
+      where: { userId_date: { userId, date: dateB } },
+      select: { id: true },
+    }),
+  ]);
+
+  if (a && b) {
+    // Park one row on a temporary date first, so the (userId, date) unique
+    // index doesn't collide while the two are mid-swap.
+    const parked = `swapping-${a.id}`;
+    await prisma.$transaction([
+      prisma.plannedDay.update({ where: { id: a.id }, data: { date: parked } }),
+      prisma.plannedDay.update({ where: { id: b.id }, data: { date: dateA } }),
+      prisma.plannedDay.update({ where: { id: a.id }, data: { date: dateB } }),
+    ]);
+  } else if (a) {
+    await prisma.plannedDay.update({ where: { id: a.id }, data: { date: dateB } });
+  } else if (b) {
+    await prisma.plannedDay.update({ where: { id: b.id }, data: { date: dateA } });
+  }
+
+  revalidatePath("/week");
+}
+
 /** Plans for one week, fetched in the background as you swipe past the window
  * the page was rendered with. */
 export async function loadWeekPlans(startKey: string) {

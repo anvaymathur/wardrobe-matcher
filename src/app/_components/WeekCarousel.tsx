@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { flushSync } from "react-dom";
-import { clearPlannedDay, loadWeekPlans, savePlannedDayAsOutfit } from "@/lib/actions";
-import { addDays, dayName, monthDay, weekDays, weekLabel } from "@/lib/weekDates";
+import { clearPlannedDay, loadWeekPlans, savePlannedDayAsOutfit, swapPlannedDays } from "@/lib/actions";
+import { addDays, dayName, monthDay, weekDays, weekLabel, weekStartKey } from "@/lib/weekDates";
 import type { DayPlanLite, PlanItemLite } from "@/lib/planner";
 
 type Plans = Record<string, DayPlanLite>;
@@ -63,24 +63,57 @@ function WeekPanel({
   today,
   plans,
   onClear,
+  swapFrom,
+  onSwapStart,
+  onSwapPick,
+  onSwapCancel,
 }: {
   start: string;
   today: string;
   plans: Plans;
   onClear: (date: string) => void;
+  swapFrom: string | null;
+  onSwapStart: (date: string) => void;
+  onSwapPick: (date: string) => void;
+  onSwapCancel: () => void;
 }) {
   return (
     <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {weekDays(start).map((date) => {
         const plan = plans[date];
         const isToday = date === today;
+        const hasPlan = Boolean(plan && plan.items.length > 0);
+        const isSource = swapFrom === date;
         return (
           <li
             key={date}
-            className={`flex flex-col gap-3 rounded-lg border p-4 ${
+            className={`relative flex flex-col gap-3 rounded-lg border p-4 ${
               isToday ? "border-foreground" : "border-black/10 dark:border-white/15"
             }`}
           >
+            {swapFrom && (
+              // While swapping, the whole card becomes the target so you can
+              // still see what's on the day you're aiming at.
+              <button
+                type="button"
+                onClick={() => (isSource ? onSwapCancel() : onSwapPick(date))}
+                className={`absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed ${
+                  isSource
+                    ? "border-black/30 bg-background/60 dark:border-white/30"
+                    : "border-emerald-500 bg-emerald-500/10"
+                }`}
+              >
+                <span
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold shadow ${
+                    isSource
+                      ? "bg-foreground text-background"
+                      : "bg-emerald-500 text-white"
+                  }`}
+                >
+                  {isSource ? "Cancel" : hasPlan ? "Swap with this" : "Move here"}
+                </span>
+              </button>
+            )}
             <div className="flex items-baseline justify-between gap-2">
               <span className="font-medium">
                 {dayName(date)}{" "}
@@ -122,6 +155,13 @@ function WeekPanel({
                       Save to outfits
                     </button>
                   </form>
+                  <button
+                    type="button"
+                    onClick={() => onSwapStart(date)}
+                    className="font-medium text-black/70 hover:underline dark:text-white/70"
+                  >
+                    Swap
+                  </button>
                   <button
                     type="button"
                     onClick={() => onClear(date)}
@@ -166,6 +206,7 @@ export function WeekCarousel({
 }) {
   const [center, setCenter] = useState(initialStart);
   const [plans, setPlans] = useState<Plans>(initialPlans);
+  const [swapFrom, setSwapFrom] = useState<string | null>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const loaded = useRef(
     new Set([addDays(initialStart, -7), initialStart, addDays(initialStart, 7)]),
@@ -295,6 +336,39 @@ export function WeekCarousel({
     void clearPlannedDay(fd);
   };
 
+  /** Re-read a week, replacing it wholesale — a merge can't clear days that no
+   * longer have a plan. */
+  const refreshWeek = (wk: string) =>
+    loadWeekPlans(wk)
+      .then((got) =>
+        setPlans((prev) => {
+          const next = { ...prev };
+          for (const d of weekDays(wk)) delete next[d];
+          return { ...next, ...got };
+        }),
+      )
+      .catch(() => {}); // offline: keep what's on screen
+
+  const swapDays = (a: string, b: string) => {
+    setSwapFrom(null);
+    if (a === b) return;
+    setPlans((prev) => {
+      const next = { ...prev };
+      if (prev[b]) next[a] = prev[b];
+      else delete next[a];
+      if (prev[a]) next[b] = prev[a];
+      else delete next[b];
+      return next;
+    });
+    // Reconcile after the write, in case a target week wasn't loaded yet and
+    // the optimistic guess treated it as empty.
+    void swapPlannedDays(a, b)
+      .then(() => Promise.all([...new Set([weekStartKey(a), weekStartKey(b)])].map(refreshWeek)))
+      .catch(() => {
+        for (const wk of new Set([weekStartKey(a), weekStartKey(b)])) void refreshWeek(wk);
+      });
+  };
+
   const prevWeek = addDays(center, -7);
   const nextWeek = addDays(center, 7);
   const offToday = center !== todayStart;
@@ -316,6 +390,25 @@ export function WeekCarousel({
           {weekLabel(nextWeek)} ›
         </button>
       </div>
+
+      {swapFrom && (
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm">
+          <span className="min-w-0">
+            Pick a day to swap{" "}
+            <span className="font-medium">
+              {dayName(swapFrom)} {monthDay(swapFrom)}
+            </span>{" "}
+            with — you can swipe to another week too.
+          </span>
+          <button
+            type="button"
+            onClick={() => setSwapFrom(null)}
+            className="shrink-0 font-medium hover:underline"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       <div
         className="overflow-hidden"
@@ -340,7 +433,16 @@ export function WeekCarousel({
         >
           {[prevWeek, center, nextWeek].map((ws) => (
             <div key={ws} className="w-full shrink-0">
-              <WeekPanel start={ws} today={today} plans={plans} onClear={clearDay} />
+              <WeekPanel
+                start={ws}
+                today={today}
+                plans={plans}
+                onClear={clearDay}
+                swapFrom={swapFrom}
+                onSwapStart={setSwapFrom}
+                onSwapPick={(date) => swapFrom && swapDays(swapFrom, date)}
+                onSwapCancel={() => setSwapFrom(null)}
+              />
             </div>
           ))}
         </div>

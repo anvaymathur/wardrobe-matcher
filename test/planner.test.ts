@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/prisma";
-import { setPlannedDay, savePlannedDayAsOutfit, toggleWeekBlock } from "@/lib/actions";
+import { setPlannedDay, savePlannedDayAsOutfit, toggleWeekBlock, swapPlannedDays } from "@/lib/actions";
 import { getWeek, getWeekBlocks, getPlannedDay, getPlansForRange, addDays } from "@/lib/planner";
 import { USER_A, USER_B } from "./setup";
 
@@ -79,6 +79,35 @@ describe("weekly planner", () => {
 
     // Weeks outside the window aren't included.
     expect(await getPlansForRange(addDays(MONDAY, 21), 1)).toEqual({});
+  });
+
+  it("swaps two days' outfits, carrying each note with its outfit", async () => {
+    const [tee, jeans] = await seedItems(USER_A, ["Tee", "Jeans"]);
+    const OTHER = "2026-09-10";
+    await setPlannedDay(planForm(DATE, [tee], "gym day"));
+    await setPlannedDay(planForm(OTHER, [jeans], "dinner out"));
+
+    await swapPlannedDays(DATE, OTHER);
+
+    const a = await getPlannedDay(DATE);
+    const b = await getPlannedDay(OTHER);
+    expect(a?.items.map((i) => i.itemId)).toEqual([jeans]);
+    expect(a?.note).toBe("dinner out");
+    expect(b?.items.map((i) => i.itemId)).toEqual([tee]);
+    expect(b?.note).toBe("gym day");
+  });
+
+  it("swapping with an empty day just moves the plan there", async () => {
+    const [tee] = await seedItems(USER_A, ["Tee"]);
+    const EMPTY = "2026-09-11";
+    await setPlannedDay(planForm(DATE, [tee], "gym day"));
+
+    await swapPlannedDays(DATE, EMPTY);
+
+    expect(await getPlannedDay(DATE)).toBeNull();
+    const moved = await getPlannedDay(EMPTY);
+    expect(moved?.items.map((i) => i.itemId)).toEqual([tee]);
+    expect(moved?.note).toBe("gym day");
   });
 
   it("ignores item ids the user doesn't own", async () => {
