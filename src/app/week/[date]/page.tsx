@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getItems } from "@/lib/items";
 import { getOutfits } from "@/lib/outfits";
 import { getMatchMap } from "@/lib/pairings";
-import { getPlannedDay, isValidKey, weekStartKey, dayName, monthDay } from "@/lib/planner";
+import { getWeek, isValidKey, weekStartKey, dayName, monthDay } from "@/lib/planner";
 import { DayPlanner } from "@/app/_components/DayPlanner";
 
 export default async function PlanDayPage({
@@ -14,12 +14,23 @@ export default async function PlanDayPage({
   const { date } = await params;
   if (!isValidKey(date)) notFound();
 
-  const [items, outfits, plan, matches] = await Promise.all([
+  const [items, outfits, week, matches] = await Promise.all([
     getItems(),
     getOutfits(),
-    getPlannedDay(date),
+    getWeek(weekStartKey(date)),
     getMatchMap(),
   ]);
+
+  const plan = week.find((d) => d.date === date)?.plan ?? null;
+
+  // Items already scheduled on other days this week → flag so you don't repeat.
+  const plannedElsewhere: Record<string, string> = {};
+  for (const { date: d, plan: p } of week) {
+    if (d === date || !p) continue;
+    for (const pi of p.items) {
+      if (!plannedElsewhere[pi.itemId]) plannedElsewhere[pi.itemId] = dayName(d);
+    }
+  }
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
@@ -46,6 +57,7 @@ export default async function PlanDayPage({
         }))}
         defaultSelected={plan?.items.map((pi) => pi.itemId) ?? []}
         matches={matches}
+        plannedElsewhere={plannedElsewhere}
       />
     </div>
   );

@@ -28,12 +28,14 @@ export function DayPlanner({
   outfits,
   defaultSelected = [],
   matches,
+  plannedElsewhere,
 }: {
   date: string;
   items: PickItem[];
   outfits: PlanOutfit[];
   defaultSelected?: string[];
   matches?: Record<string, string[]>;
+  plannedElsewhere?: Record<string, string>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(defaultSelected));
   const itemIds = new Set(items.map((i) => i.id));
@@ -103,6 +105,7 @@ export function DayPlanner({
           onToggle={toggle}
           singlePerCategory
           matches={matches}
+          plannedElsewhere={plannedElsewhere}
         />
       </div>
 

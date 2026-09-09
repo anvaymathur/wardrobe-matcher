@@ -54,12 +54,15 @@ export function ItemPickerGrid({
   onToggle,
   singlePerCategory = false,
   matches,
+  plannedElsewhere,
 }: {
   items: PickItem[];
   selected: Set<string>;
   onToggle: (id: string) => void;
   singlePerCategory?: boolean;
   matches?: Record<string, string[]>;
+  /** itemId → a short day label (e.g. "Tue") it's already planned on this week. */
+  plannedElsewhere?: Record<string, string>;
 }) {
   const selectedItems = items.filter((i) => selected.has(i.id));
 
@@ -71,7 +74,7 @@ export function ItemPickerGrid({
   const recommended = new Set<string>();
   if (matches) {
     for (const item of items) {
-      if (selected.has(item.id)) continue;
+      if (selected.has(item.id) || plannedElsewhere?.[item.id]) continue;
       const others = selectedItems.filter((s) => s.category !== item.category);
       if (others.length === 0) continue;
       const paired = matches[item.id] ?? [];
@@ -93,6 +96,11 @@ export function ItemPickerGrid({
           Outlined items match everything you’ve picked.
         </p>
       )}
+      {plannedElsewhere && Object.keys(plannedElsewhere).length > 0 && (
+        <p className="-mb-2 text-xs text-amber-600 dark:text-amber-400">
+          Faded items are already planned another day this week.
+        </p>
+      )}
       {groups.map((group) => (
         <div key={group.category}>
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-black/45 dark:text-white/45">
@@ -101,7 +109,10 @@ export function ItemPickerGrid({
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {group.items.map((item) => {
               const isSel = selected.has(item.id);
-              const dimmed = singlePerCategory && !isSel && pickedCategories.has(item.category);
+              const plannedDay = !isSel ? plannedElsewhere?.[item.id] : undefined;
+              const dimmed =
+                (singlePerCategory && !isSel && pickedCategories.has(item.category)) ||
+                Boolean(plannedDay);
               const isMatch = !isSel && !dimmed && recommended.has(item.id);
               return (
                 <li key={item.id}>
@@ -114,7 +125,9 @@ export function ItemPickerGrid({
                         ? "border-foreground"
                         : isMatch
                           ? "border-emerald-500"
-                          : "border-transparent"
+                          : plannedDay
+                            ? "border-amber-500"
+                            : "border-transparent"
                     } ${dimmed ? "opacity-40" : ""}`}
                   >
                     <div className="aspect-square bg-black/5 dark:bg-white/10">
@@ -132,11 +145,15 @@ export function ItemPickerGrid({
                         ✓
                       </span>
                     )}
-                    {isMatch && (
+                    {plannedDay ? (
+                      <span className="absolute left-1 top-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none text-white">
+                        {plannedDay}
+                      </span>
+                    ) : isMatch ? (
                       <span className="absolute left-1 top-1 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none text-white">
                         match
                       </span>
-                    )}
+                    ) : null}
                     <span className="block truncate px-1.5 py-1 text-left text-[11px] leading-tight">
                       {item.name}
                     </span>
