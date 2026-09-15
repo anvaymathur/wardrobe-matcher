@@ -8,6 +8,7 @@ import { requireUserId } from "@/lib/currentUser";
 import { deleteImage } from "@/lib/storage";
 import { isCategory, isValidTier } from "@/lib/types";
 import { isValidKey, weekStartKey, getPlansForRange } from "@/lib/planner";
+import { readProductLink } from "@/lib/links";
 
 function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -76,6 +77,9 @@ function readItemFields(
   if (!isCategory(category)) return { ok: false, error: "Please choose a category" };
   if (!subtype) return { ok: false, error: "Subtype is required" };
 
+  const sourceUrl = readProductLink(text(formData, "sourceUrl"));
+  if (sourceUrl === false) return { ok: false, error: "Product link must be a web address (https://…)" };
+
   return {
     ok: true,
     fields: {
@@ -84,7 +88,7 @@ function readItemFields(
       subtype,
       color: text(formData, "color") || null,
       notes: text(formData, "notes") || null,
-      sourceUrl: text(formData, "sourceUrl") || null,
+      sourceUrl,
     },
   };
 }

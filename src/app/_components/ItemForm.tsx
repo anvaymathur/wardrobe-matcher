@@ -211,6 +211,7 @@ export function ItemForm({
   const [subtype, setSubtype] = useState(defaults.subtype ?? "");
   const [color, setColor] = useState(defaults.color ?? "");
   const [notes, setNotes] = useState(defaults.notes ?? "");
+  const [sourceUrl, setSourceUrl] = useState(defaults.sourceUrl ?? "");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -242,6 +243,7 @@ export function ItemForm({
         fd.set("subtype", subtype);
         fd.set("color", color);
         fd.set("notes", notes);
+        fd.set("sourceUrl", sourceUrl);
         if (imageUrl) fd.set("imageUrl", imageUrl);
 
         const result = await action(fd);
@@ -317,11 +319,27 @@ export function ItemForm({
       <ImageField initialImagePath={defaults.imagePath} onFile={setImageFile} />
 
       <label className={labelClass}>
-        Notes <span className="font-normal text-black/50 dark:text-white/50">(optional)</span>
+        Description <span className="font-normal text-black/50 dark:text-white/50">(optional)</span>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
+          placeholder="Heavyweight cotton, relaxed fit, faded black"
+          className={inputClass}
+        />
+        <span className="text-xs font-normal text-black/45 dark:text-white/45">
+          Details like fabric, fit, and pattern help the stylist suggest better matches.
+        </span>
+      </label>
+
+      <label className={labelClass}>
+        Product link <span className="font-normal text-black/50 dark:text-white/50">(optional)</span>
+        <input
+          type="url"
+          inputMode="url"
+          value={sourceUrl}
+          onChange={(e) => setSourceUrl(e.target.value)}
+          placeholder="https://store.com/product"
           className={inputClass}
         />
       </label>

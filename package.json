@@ -2,6 +2,9 @@
   "name": "wardrobe-matcher",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && node scripts/migrate-turso.mjs && next build",
@@ -11,14 +14,17 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@ai-sdk/react": "^4.0.103",
     "@libsql/client": "^0.17.4",
     "@prisma/adapter-libsql": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@vercel/blob": "^2.5.0",
+    "ai": "^7.0.100",
     "next": "16.2.10",
     "next-auth": "^5.0.0-beta.32",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

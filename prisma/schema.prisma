@@ -24,6 +24,7 @@ model User {
   collections Collection[]
   plannedDays PlannedDay[]
   weekBlocks  PlannedWeekBlock[]
+  aiUsage     AiUsage[]
 }
 
 model Item {
@@ -154,5 +155,18 @@ model PlannedWeekBlock {
   userId String?
 
   @@unique([userId, week, itemId])
+  @@index([userId])
+}
+
+// AI requests per user per calendar day (UTC), to cap spend on free AI credits.
+model AiUsage {
+  id    String @id @default(uuid())
+  day   String // "YYYY-MM-DD"
+  count Int    @default(0)
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+
+  @@unique([userId, day])
   @@index([userId])
 }

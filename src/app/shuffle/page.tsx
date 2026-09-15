@@ -1,10 +1,13 @@
+import { redirect } from "next/navigation";
 import { getItems } from "@/lib/items";
 import { getAllPairings } from "@/lib/pairings";
 import { getActiveCollection } from "@/lib/collections";
+import { FEATURES } from "@/lib/features";
 import { Shuffler } from "@/app/_components/Shuffler";
 import { CollectionBanner } from "@/app/_components/CollectionBanner";
 
 export default async function ShufflePage() {
+  if (!FEATURES.shuffle) redirect("/");
   const activeCollection = await getActiveCollection();
   const [items, pairings] = await Promise.all([
     getItems({ collectionId: activeCollection?.id ?? null }),

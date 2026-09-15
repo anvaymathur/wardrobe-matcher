@@ -7,7 +7,7 @@ const tabs = [
   { href: "/", label: "Closet", icon: "👕", active: (p: string) => p === "/" || p.startsWith("/items") },
   { href: "/week", label: "Week", icon: "📅", active: (p: string) => p.startsWith("/week") },
   { href: "/outfits", label: "Outfits", icon: "🧥", active: (p: string) => p.startsWith("/outfits") },
-  { href: "/shuffle", label: "Shuffle", icon: "🎲", active: (p: string) => p.startsWith("/shuffle") || p.startsWith("/builder") },
+  { href: "/assistant", label: "Stylist", icon: "✨", active: (p: string) => p.startsWith("/assistant") },
   { href: "/settings", label: "Settings", icon: "⚙️", active: (p: string) => p.startsWith("/settings") },
 ];
 

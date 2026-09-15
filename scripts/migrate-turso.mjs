@@ -52,6 +52,17 @@ const statements = [
   )`,
   `CREATE INDEX IF NOT EXISTS "PlannedWeekBlock_userId_idx" ON "PlannedWeekBlock"("userId")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "PlannedWeekBlock_userId_week_itemId_key" ON "PlannedWeekBlock"("userId", "week", "itemId")`,
+
+  // Per-user daily AI request counter (added 2026-09-14)
+  `CREATE TABLE IF NOT EXISTS "AiUsage" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "day" TEXT NOT NULL,
+    "count" INTEGER NOT NULL DEFAULT 0,
+    "userId" TEXT,
+    CONSTRAINT "AiUsage_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS "AiUsage_userId_idx" ON "AiUsage"("userId")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "AiUsage_userId_day_key" ON "AiUsage"("userId", "day")`,
 ];
 
 // SQLite has no "ADD COLUMN IF NOT EXISTS", so add a column only when missing

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { FEATURES } from "@/lib/features";
 import { getItems, getItem } from "@/lib/items";
 import { getPairingsForItem } from "@/lib/pairings";
 import { MIN_TIER, MAX_TIER } from "@/lib/types";
@@ -21,6 +23,7 @@ export default async function BuilderPage({
 }: {
   searchParams: Promise<{ itemId?: string }>;
 }) {
+  if (!FEATURES.shuffle) redirect("/");
   const { itemId } = await searchParams;
   const items = await getItems();
   const selected = itemId ? await getItem(itemId) : null;

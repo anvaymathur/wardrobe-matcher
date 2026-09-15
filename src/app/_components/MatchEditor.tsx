@@ -111,7 +111,7 @@ export function MatchEditor({
     <div className="flex flex-col gap-6">
       <p className="text-sm text-black/55 dark:text-white/55">
         Tap an item to pair it with this one. On a match, tap the dots to set how
-        well they go together — stronger matches show up more often in Shuffle.
+        well they go together — stronger matches are favored in suggestions.
         {matchCount > 0 && (
           <span className="ml-1 font-medium text-foreground">
             {matchCount} matched.

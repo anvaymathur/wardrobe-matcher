@@ -26,8 +26,8 @@ export function SiteHeader() {
           <Link href="/outfits" className="rounded-md px-2 py-1.5 hover:text-foreground">
             Outfits
           </Link>
-          <Link href="/shuffle" className="rounded-md px-2 py-1.5 hover:text-foreground">
-            Shuffle
+          <Link href="/assistant" className="rounded-md px-2 py-1.5 hover:text-foreground">
+            Stylist
           </Link>
           <Link href="/settings" className="rounded-md px-2 py-1.5 hover:text-foreground">
             Settings

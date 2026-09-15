@@ -40,6 +40,7 @@ beforeEach(async () => {
   hoisted.store.clear();
   hoisted.current.userId = USER_A;
 
+  await prisma.aiUsage.deleteMany();
   await prisma.collectionItem.deleteMany();
   await prisma.outfitItem.deleteMany();
   await prisma.pairing.deleteMany();
