@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { setPlannedDay, toggleWeekBlock } from "@/lib/actions";
 import { ItemPickerGrid, applyToggle, type PickItem } from "./ItemPickerGrid";
+import { AiOutfitSuggester } from "./AiOutfitSuggester";
 
 export type PlanOutfit = { id: string; name: string; itemIds: string[] };
 
@@ -104,6 +105,12 @@ export function DayPlanner({
           </div>
         </div>
       )}
+
+      <AiOutfitSuggester
+        items={items}
+        anchorItemIds={[...selected]}
+        onUse={(idea) => setSelected(new Set(idea.itemIds.filter((id) => itemIds.has(id))))}
+      />
 
       <div>
         <div className="mb-2 flex items-center justify-between">

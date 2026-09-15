@@ -4,6 +4,7 @@ import { getItem } from "@/lib/items";
 import { getMatchEditorData } from "@/lib/pairings";
 import { MatchEditor } from "@/app/_components/MatchEditor";
 import { FavoriteButton } from "@/app/_components/FavoriteButton";
+import { storeName } from "@/lib/links";
 
 export default async function ItemDetailPage({
   params,
@@ -45,12 +46,27 @@ export default async function ItemDetailPage({
             {item.color ? ` · ${item.color}` : ""}
           </p>
           {item.notes && <p className="mt-2 text-sm text-black/70 dark:text-white/70">{item.notes}</p>}
-          <Link
-            href={`/items/${item.id}/edit`}
-            className="mt-3 w-fit text-sm font-medium text-black/60 hover:underline dark:text-white/60"
-          >
-            Edit item
-          </Link>
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-medium">
+            <Link href={`/items/${item.id}/edit`} className="text-black/60 hover:underline dark:text-white/60">
+              Edit item
+            </Link>
+            <Link
+              href={`/outfits/new?anchor=${item.id}`}
+              className="text-violet-700 hover:underline dark:text-violet-300"
+            >
+              ✨ Build an outfit with this
+            </Link>
+            {item.sourceUrl && (
+              <a
+                href={item.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-black/60 hover:underline dark:text-white/60"
+              >
+                View product on {storeName(item.sourceUrl)} ↗
+              </a>
+            )}
+          </div>
         </div>
       </div>
 

@@ -26,6 +26,7 @@ export function OutfitForm({
   submitLabel,
   singlePerCategory = false,
   matches,
+  onSelectionChange,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   items: PickItem[];
@@ -33,6 +34,7 @@ export function OutfitForm({
   submitLabel: string;
   singlePerCategory?: boolean;
   matches?: Record<string, string[]>;
+  onSelectionChange?: (ids: string[]) => void;
 }) {
   return (
     <form action={action} className="flex flex-col gap-5">
@@ -56,6 +58,7 @@ export function OutfitForm({
           defaultSelected={defaults?.itemIds ?? []}
           singlePerCategory={singlePerCategory}
           matches={matches}
+          onChange={onSelectionChange}
         />
       </div>
 

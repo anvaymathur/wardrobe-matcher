@@ -13,16 +13,22 @@ export function ItemMultiSelect({
   defaultSelected = [],
   singlePerCategory = false,
   matches,
+  onChange,
 }: {
   items: PickItem[];
   defaultSelected?: string[];
   singlePerCategory?: boolean;
   matches?: Record<string, string[]>;
+  /** Called with the new selection after each tap. */
+  onChange?: (ids: string[]) => void;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(defaultSelected));
 
-  const toggle = (id: string) =>
-    setSelected((prev) => applyToggle(prev, id, items, singlePerCategory));
+  const toggle = (id: string) => {
+    const next = applyToggle(selected, id, items, singlePerCategory);
+    setSelected(next);
+    onChange?.([...next]);
+  };
 
   if (items.length === 0) {
     return (
