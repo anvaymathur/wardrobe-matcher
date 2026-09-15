@@ -11,6 +11,7 @@ import { appendMessage, getThread, updateSummary } from "@/lib/chat";
 import { AliasTable, loadCloset } from "@/lib/ai/closet";
 import { consumeAiQuota, friendlyAiError } from "@/lib/ai/guard";
 import { LIMITS } from "@/lib/ai/models";
+import { SEARCH_TOOL, withVerifiedProducts } from "@/lib/ai/products";
 import {
   chatMetadataSchema,
   createStylistAgent,
@@ -90,7 +91,12 @@ export async function POST(req: Request) {
     metadataSchema: chatMetadataSchema,
     tools,
   });
-  const recent = history.success ? selectHistory(history.data, thread.summarizedCount) : [];
+  // Earlier search results aren't resent: they're bulky (billed as input every
+  // turn) and the product cards already record what was recommended.
+  const recent = (history.success ? selectHistory(history.data, thread.summarizedCount) : []).map((m) => ({
+    ...m,
+    parts: m.parts.filter((p) => p.type !== `tool-${SEARCH_TOOL}`),
+  }));
 
   const modelMessages = await convertToModelMessages(withTaggedItems([...recent, incoming], closet, aliases), {
     tools,
@@ -130,7 +136,9 @@ export async function POST(req: Request) {
         onError: friendlyAiError,
         onEnd: async ({ responseMessage }) => {
           try {
-            if (responseMessage.parts.length) await appendMessage(thread.id, position + 1, responseMessage);
+            if (responseMessage.parts.length) {
+              await appendMessage(thread.id, position + 1, withVerifiedProducts(responseMessage));
+            }
           } finally {
             saved();
           }

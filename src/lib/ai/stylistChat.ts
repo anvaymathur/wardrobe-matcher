@@ -1,4 +1,5 @@
 import {
+  gateway,
   generateText,
   isStepCount,
   tool,
@@ -12,6 +13,7 @@ import { z } from "zod";
 import { AliasTable, closetIndex, describeItem, photoUrl, type Closet } from "./closet";
 import { STYLIST_POLICY } from "./guard";
 import { LIMITS, STYLIST_MODEL, gatewayOptions } from "./models";
+import { SEARCH_TOOL, type ProductCard } from "./products";
 
 // ── Message shape ─────────────────────────────────────────────────────────────
 
@@ -70,6 +72,44 @@ export function createStylistTools(closet: Closet, aliases: AliasTable) {
         value: output.items.length
           ? `Showing ${output.items.length} item card(s) to the user.`
           : "None of those aliases exist, so nothing was shown.",
+      }),
+    }),
+
+    // Web search, run by the AI Gateway ($5 per 1,000 searches). Kept small:
+    // few results and short page extracts, since everything returned is billed
+    // as input tokens on the next step.
+    [SEARCH_TOOL]: gateway.tools.perplexitySearch({ maxResults: 5, maxTokensPerPage: 512, maxTokens: 3000 }),
+
+    showProducts: tool({
+      description:
+        "Show shopping options as product cards with links. Only use products and exact URLs that appeared in web search results in this reply.",
+      inputSchema: z.object({
+        products: z
+          .array(
+            z.object({
+              title: z.string().describe("Product name as listed"),
+              url: z.string().describe("Exact product page URL from the search results"),
+              price: z.string().optional().describe("Price as shown in the result, e.g. \"$49.90\""),
+              reason: z.string().describe("Why it suits the user and their items, one short sentence"),
+            }),
+          )
+          .describe("2–4 options"),
+      }),
+      execute: async ({ products }) => ({
+        // Links are checked against the search results before being shown or saved.
+        products: products.slice(0, 4).map(
+          (p): ProductCard => ({
+            title: p.title.trim().slice(0, 120),
+            url: p.url.trim(),
+            store: "",
+            price: p.price?.trim().slice(0, 30) || null,
+            reason: p.reason.trim().slice(0, 160),
+          }),
+        ),
+      }),
+      toModelOutput: ({ output }) => ({
+        type: "text",
+        value: `Showing ${output.products.length} product card(s) to the user.`,
       }),
     }),
   };
@@ -152,7 +192,13 @@ const CHAT_TASK = `How to help in this chat:
 - The user's closet is listed below by alias. Use getItemDetails when you need more about an item.
 - When you recommend or refer to items they own, call showItems with their aliases so they appear as cards, then explain briefly. Don't list long item details in text.
 - Tagged items are what the user is asking about.
-- Keep replies short and practical. Use a short list for options.`;
+- Keep replies short and practical. Use a short list for options.
+
+Shopping (only when the user asks to buy, shop for, or find something online):
+- Search with ${SEARCH_TOOL}, at most ${LIMITS.maxSearchesPerTurn} searches. Make queries specific: item type, color, style, and their budget (e.g. "men's olive hoodie under $60").
+- Then call showProducts with 2–4 real options from the results: exact URLs from the results, price only if the result shows it, and a reason tied to their items.
+- Never invent products, prices, stores or links. If the results don't have good options, say so.
+- Don't search the web for anything that isn't shopping for clothing, shoes or accessories.`;
 
 export function stylistInstructions(closet: Closet, aliases: AliasTable, summary: string | null) {
   // Stable text first (policy, task, closet) so providers can reuse cached prompt prefixes.
@@ -186,6 +232,13 @@ export function createStylistAgent({
     instructions: stylistInstructions(closet, aliases, summary),
     tools,
     stopWhen: isStepCount(LIMITS.maxToolSteps),
+    // Cap web searches per reply: once used up, the search tool is switched off.
+    prepareStep: ({ steps }) => {
+      const searches = steps.flatMap((s) => s.toolCalls).filter((c) => c.toolName === SEARCH_TOOL).length;
+      return searches >= LIMITS.maxSearchesPerTurn
+        ? { activeTools: ["getItemDetails", "showItems", "showProducts"] }
+        : {};
+    },
     maxOutputTokens: LIMITS.chatOutputTokens,
     reasoning: "minimal",
     maxRetries: 1,

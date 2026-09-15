@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { urlKey } from "@/lib/ai/products";
 
 // **bold**, [label](https://…), or a bare https://… link.
 const INLINE = /(\*\*[^*\n]+\*\*|\[[^\]\n]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s<>()]+)/g;
@@ -11,34 +12,41 @@ function Anchor({ href, children }: { href: string; children: ReactNode }) {
   );
 }
 
-function inline(text: string): ReactNode[] {
+function inline(text: string, allowed: Set<string> | undefined): ReactNode[] {
+  // A link is clickable only if it's allowed (e.g. came from a real search);
+  // otherwise its text is shown plainly, so made-up URLs aren't one tap away.
+  const link = (key: number, href: string, label: string) => {
+    const k = urlKey(href);
+    return !allowed || (k && allowed.has(k)) ? <Anchor key={key} href={href}>{label}</Anchor> : label;
+  };
   return text.split(INLINE).map((chunk, i) => {
     if (!chunk) return null;
     if (chunk.startsWith("**") && chunk.endsWith("**")) return <strong key={i}>{chunk.slice(2, -2)}</strong>;
     const md = chunk.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
-    if (md) return <Anchor key={i} href={md[2]}>{md[1]}</Anchor>;
-    if (/^https?:\/\//.test(chunk)) return <Anchor key={i} href={chunk}>{chunk.replace(/^https?:\/\/(www\.)?/, "")}</Anchor>;
+    if (md) return link(i, md[2], md[1]);
+    if (/^https?:\/\//.test(chunk)) return link(i, chunk, chunk.replace(/^https?:\/\/(www\.)?/, ""));
     return chunk;
   });
 }
 
 /** Renders the stylist's reply: paragraphs, bullet/numbered lists, bold and
  * links. Built from React elements only — no raw HTML — so model output can't
- * inject markup. */
-export function ChatText({ text }: { text: string }) {
+ * inject markup. Pass `allowedLinks` (URL keys) to only link verified URLs. */
+export function ChatText({ text, allowedLinks }: { text: string; allowedLinks?: Set<string> }) {
+  const inlineAllowed = (s: string) => inline(s, allowedLinks);
   const blocks: ReactNode[] = [];
   let paragraph: string[] = [];
   let list: { ordered: boolean; items: string[] } | null = null;
 
   const flushParagraph = () => {
     if (paragraph.length) {
-      blocks.push(<p key={blocks.length}>{inline(paragraph.join(" "))}</p>);
+      blocks.push(<p key={blocks.length}>{inlineAllowed(paragraph.join(" "))}</p>);
       paragraph = [];
     }
   };
   const flushList = () => {
     if (list) {
-      const items = list.items.map((item, i) => <li key={i}>{inline(item)}</li>);
+      const items = list.items.map((item, i) => <li key={i}>{inlineAllowed(item)}</li>);
       blocks.push(
         list.ordered ? (
           <ol key={blocks.length} className="list-decimal space-y-1 pl-5">{items}</ol>

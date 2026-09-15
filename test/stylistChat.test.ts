@@ -196,6 +196,62 @@ describe("POST /api/chat", () => {
     expect(JSON.stringify(model.doStreamCalls[1].prompt)).not.toContain(tee.id);
   });
 
+  it("shopping: only saves product cards whose links came back from the web search", async () => {
+    const threadId = await createThread(USER_A);
+    hoisted.model = scriptedModel([
+      [
+        { type: "tool-call", toolCallId: "s1", toolName: "perplexity_search", input: JSON.stringify({ query: "olive hoodie under $60" }), providerExecuted: true },
+        {
+          type: "tool-result",
+          toolCallId: "s1",
+          toolName: "perplexity_search",
+          result: { id: "r1", results: [{ title: "Olive Hoodie", url: "https://www.gap.com/p/olive-hoodie?utm=x", snippet: "$49.95" }] },
+        },
+        {
+          type: "tool-call",
+          toolCallId: "p1",
+          toolName: "showProducts",
+          input: JSON.stringify({
+            products: [
+              { title: "Olive Hoodie", url: "https://gap.com/p/olive-hoodie", price: "$49.95", reason: "Earthy tone for your jeans" },
+              { title: "Imaginary Hoodie", url: "https://not-a-real-store.example/hoodie", reason: "made up" },
+            ],
+          }),
+        },
+        finish("tool-calls"),
+      ],
+      textReply("Here are a couple of options."),
+    ]);
+
+    const res = await post({ id: threadId, message: userMessage("Find me an olive hoodie under $60") });
+    expect(res.status).toBe(200);
+    await res.text();
+
+    const reply = (await getThread(USER_A, threadId))?.messages[1];
+    const cards = reply?.parts.find((p) => p.type === "tool-showProducts");
+    const products = cards && "output" in cards ? (cards.output as { products: { url: string; store: string }[] }).products : [];
+    expect(products).toEqual([expect.objectContaining({ url: "https://www.gap.com/p/olive-hoodie?utm=x", store: "gap.com" })]);
+  });
+
+  it("switches web search off after the per-reply limit", async () => {
+    const threadId = await createThread(USER_A);
+    const searchStep = (n: number) => [
+      { type: "tool-call", toolCallId: `s${n}`, toolName: "perplexity_search", input: JSON.stringify({ query: `q${n}` }), providerExecuted: true },
+      { type: "tool-result", toolCallId: `s${n}`, toolName: "perplexity_search", result: { id: `r${n}`, results: [] } },
+      { type: "tool-call", toolCallId: `c${n}`, toolName: "showItems", input: JSON.stringify({ items: [] }) },
+      finish("tool-calls"),
+    ];
+    const model = scriptedModel([searchStep(1), searchStep(2), textReply("done")]);
+    hoisted.model = model;
+
+    const res = await post({ id: threadId, message: userMessage("Find shoes") });
+    await res.text();
+
+    const toolNames = (i: number) => (model.doStreamCalls[i].tools ?? []).map((t) => t.name);
+    expect(toolNames(1)).toContain("perplexity_search");
+    expect(toolNames(2)).not.toContain("perplexity_search");
+  });
+
   it("rejects signed-out users, other people's threads, and over-long messages", async () => {
     const threadId = await createThread(USER_A);
 

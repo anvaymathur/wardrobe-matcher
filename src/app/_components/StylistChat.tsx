@@ -7,6 +7,7 @@ import { DefaultChatTransport } from "ai";
 import { startChatThread } from "@/lib/aiActions";
 import { LIMITS } from "@/lib/ai/models";
 import type { ShownItem, StylistUIMessage } from "@/lib/ai/stylistChat";
+import { SEARCH_TOOL, searchResultUrls, verifyProducts, type ProductCard } from "@/lib/ai/products";
 import { ChatText } from "./ChatText";
 import { ItemPickerGrid } from "./ItemPickerGrid";
 import { ItemThumb } from "./ItemThumb";
@@ -25,8 +26,36 @@ const transport = new DefaultChatTransport<StylistUIMessage>({
 const STARTERS = [
   "What goes with the item I tagged?",
   "Put together an outfit for a dinner date",
-  "What's missing from my closet?",
+  "Find a hoodie under $60 that matches the item I tagged",
 ];
+
+function ProductCards({ products }: { products: ProductCard[] }) {
+  if (products.length === 0) {
+    return <p className="text-xs text-black/50 dark:text-white/50">No verified product links came back for that search.</p>;
+  }
+  return (
+    <ul className="flex flex-col gap-2">
+      {products.map((p) => (
+        <li key={p.url} className="rounded-xl border border-black/10 bg-background p-3 dark:border-white/15">
+          <p className="line-clamp-2 text-sm font-medium">{p.title}</p>
+          <p className="mt-0.5 text-xs text-black/50 dark:text-white/50">
+            {p.store}
+            {p.price ? <span className="font-semibold text-foreground"> · {p.price}</span> : null}
+          </p>
+          {p.reason && <p className="mt-1.5 text-xs leading-snug text-black/65 dark:text-white/65">{p.reason}</p>}
+          <a
+            href={p.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1 rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background hover:opacity-90"
+          >
+            View on {p.store} ↗
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function ItemCards({ items, caption }: { items: ShownItem[]; caption: string | null }) {
   if (items.length === 0) return null;
@@ -164,12 +193,30 @@ export function StylistChat({
               </li>
             );
           }
+          // Links and product cards only count if they came from this reply's web search.
+          const found = searchResultUrls(m.parts);
+          const allowedLinks = new Set(found.keys());
           return (
             <li key={m.id} className="mr-auto flex w-full max-w-[92%] flex-col gap-2 rounded-2xl rounded-bl-md bg-black/[0.04] px-3.5 py-2.5 dark:bg-white/[0.06]">
               {m.parts.map((part, i) => {
                 switch (part.type) {
                   case "text":
-                    return part.text ? <ChatText key={i} text={part.text} /> : null;
+                    return part.text ? <ChatText key={i} text={part.text} allowedLinks={allowedLinks} /> : null;
+                  case `tool-${SEARCH_TOOL}`: {
+                    if (part.state !== "output-available") return <Pending key={i} label="Searching the web…" />;
+                    const failed = typeof part.output === "object" && part.output !== null && "error" in part.output;
+                    return failed ? (
+                      <p key={i} className="text-xs text-black/50 dark:text-white/50">
+                        Web search isn&apos;t available right now.
+                      </p>
+                    ) : null;
+                  }
+                  case "tool-showProducts":
+                    return part.state === "output-available" ? (
+                      <ProductCards key={i} products={verifyProducts(part.output.products, found)} />
+                    ) : (
+                      <Pending key={i} label="Picking the best options…" />
+                    );
                   case "tool-showItems":
                     return part.state === "output-available" ? (
                       <ItemCards key={i} items={part.output.items} caption={part.output.caption} />
