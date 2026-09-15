@@ -63,6 +63,29 @@ const statements = [
   )`,
   `CREATE INDEX IF NOT EXISTS "AiUsage_userId_idx" ON "AiUsage"("userId")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "AiUsage_userId_day_key" ON "AiUsage"("userId", "day")`,
+
+  // Stylist chat threads and messages (added 2026-09-14)
+  `CREATE TABLE IF NOT EXISTS "ChatThread" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT,
+    "summary" TEXT,
+    "summarizedCount" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    "userId" TEXT,
+    CONSTRAINT "ChatThread_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS "ChatThread_userId_idx" ON "ChatThread"("userId")`,
+  `CREATE TABLE IF NOT EXISTS "ChatMessage" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "threadId" TEXT NOT NULL,
+    "position" INTEGER NOT NULL,
+    "role" TEXT NOT NULL,
+    "data" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ChatMessage_threadId_fkey" FOREIGN KEY ("threadId") REFERENCES "ChatThread" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS "ChatMessage_threadId_position_idx" ON "ChatMessage"("threadId", "position")`,
 ];
 
 // SQLite has no "ADD COLUMN IF NOT EXISTS", so add a column only when missing

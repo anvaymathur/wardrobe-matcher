@@ -37,14 +37,17 @@ export function BottomNav() {
         </div>
       </nav>
 
-      {/* Thumb-reachable add button (mobile only), sitting above the tab bar. */}
-      <Link
-        href="/items/new"
-        aria-label="Add item"
-        className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-3xl leading-none text-background shadow-lg sm:hidden"
-      >
-        +
-      </Link>
+      {/* Thumb-reachable add button (mobile only), sitting above the tab bar.
+          Hidden in chat, where it would cover the message box. */}
+      {!pathname.startsWith("/assistant") && (
+        <Link
+          href="/items/new"
+          aria-label="Add item"
+          className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-3xl leading-none text-background shadow-lg sm:hidden"
+        >
+          +
+        </Link>
+      )}
     </>
   );
 }

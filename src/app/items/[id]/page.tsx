@@ -56,6 +56,9 @@ export default async function ItemDetailPage({
             >
               ✨ Build an outfit with this
             </Link>
+            <Link href={`/assistant/new?tag=${item.id}`} className="text-violet-700 hover:underline dark:text-violet-300">
+              Ask the stylist
+            </Link>
             {item.sourceUrl && (
               <a
                 href={item.sourceUrl}

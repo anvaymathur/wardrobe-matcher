@@ -126,14 +126,30 @@ export function closetIndex(closet: Closet, aliases: AliasTable, items = closet.
   return lines.join("\n") || "(the closet is empty)";
 }
 
-/** Photo of an item as an image part — only for our own Blob storage URLs. */
-export function imagePart(item: AiItem): FilePart | null {
+const IMAGE_TYPES: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+
+/** An item's photo URL with its media type — only for our own Blob storage, so
+ * a model provider is never pointed at an arbitrary address. */
+export function photoUrl(item: Pick<AiItem, "imagePath">): { url: string; mediaType: string } | null {
   if (!item.imagePath) return null;
   try {
     const url = new URL(item.imagePath);
     if (url.protocol !== "https:" || !url.hostname.endsWith(".blob.vercel-storage.com")) return null;
-    return { type: "file", mediaType: "image", data: url };
+    const ext = url.pathname.split(".").pop()?.toLowerCase() ?? "";
+    return { url: url.toString(), mediaType: IMAGE_TYPES[ext] ?? "image/jpeg" };
   } catch {
     return null;
   }
+}
+
+/** Photo of an item as a model image part (see `photoUrl`). */
+export function imagePart(item: AiItem): FilePart | null {
+  const photo = photoUrl(item);
+  return photo ? { type: "file", mediaType: photo.mediaType, data: new URL(photo.url) } : null;
 }

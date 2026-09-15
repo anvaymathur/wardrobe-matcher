@@ -10,7 +10,16 @@ export type ThumbItem = { name: string; imagePath: string | null; category: stri
 
 /** Square item thumbnail: the photo, or a tinted tile showing the item's name
  * so a photo-less item is still recognizable. */
-export function ItemThumb({ item, size = "h-16 w-16" }: { item: ThumbItem; size?: string }) {
+export function ItemThumb({
+  item,
+  size = "h-16 w-16",
+  initialOnly = false,
+}: {
+  item: ThumbItem;
+  size?: string;
+  /** For tiny thumbnails where a name can't fit: show its first letter. */
+  initialOnly?: boolean;
+}) {
   return item.imagePath ? (
     <div className={`${size} shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -23,7 +32,11 @@ export function ItemThumb({ item, size = "h-16 w-16" }: { item: ThumbItem; size?
         TINT[item.category] ?? "bg-black/5 dark:bg-white/10"
       }`}
     >
-      <span className="line-clamp-3">{item.name}</span>
+      {initialOnly ? (
+        <span className="text-xs font-semibold">{item.name.charAt(0).toUpperCase()}</span>
+      ) : (
+        <span className="line-clamp-3">{item.name}</span>
+      )}
     </span>
   );
 }

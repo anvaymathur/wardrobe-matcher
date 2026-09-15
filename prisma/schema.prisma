@@ -25,6 +25,7 @@ model User {
   plannedDays PlannedDay[]
   weekBlocks  PlannedWeekBlock[]
   aiUsage     AiUsage[]
+  chatThreads ChatThread[]
 }
 
 model Item {
@@ -44,8 +45,8 @@ model Item {
   user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String?
 
-  pairingsA   Pairing[]        @relation("ItemA")
-  pairingsB   Pairing[]        @relation("ItemB")
+  pairingsA   Pairing[]          @relation("ItemA")
+  pairingsB   Pairing[]          @relation("ItemB")
   outfits     OutfitItem[]
   collections CollectionItem[]
   plannedDays PlannedDayItem[]
@@ -169,4 +170,35 @@ model AiUsage {
 
   @@unique([userId, day])
   @@index([userId])
+}
+
+// A saved conversation with the AI stylist.
+model ChatThread {
+  id              String        @id @default(uuid())
+  title           String?
+  // Rolling summary of older messages, so only recent ones are resent to the
+  // model. `summarizedCount` is how many leading messages it covers.
+  summary         String?
+  summarizedCount Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  messages        ChatMessage[]
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+
+  @@index([userId])
+}
+
+// One chat message, stored as the AI SDK UIMessage JSON (parts + metadata).
+model ChatMessage {
+  id        String     @id @default(uuid())
+  thread    ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  threadId  String
+  position  Int
+  role      String
+  data      String // JSON
+  createdAt DateTime   @default(now())
+
+  @@index([threadId, position])
 }

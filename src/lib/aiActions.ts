@@ -1,6 +1,8 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { requireUserId } from "@/lib/currentUser";
+import { createThread, deleteThread } from "@/lib/chat";
 import { AiUserError, consumeAiQuota, runAi, type AiResult } from "@/lib/ai/guard";
 import { suggestMatchesFor, type MatchSuggestion } from "@/lib/ai/suggestMatches";
 import { suggestOutfitsFor, type OutfitSuggestion } from "@/lib/ai/suggestOutfits";
@@ -32,4 +34,21 @@ export async function suggestOutfits(input: {
     await consumeAiQuota(userId);
     return suggestOutfitsFor(userId, { brief, anchorItemIds });
   });
+}
+
+/** Create an empty chat thread when the first message is about to be sent (not
+ * on page load, so prefetches and abandoned visits don't leave empty chats). */
+export async function startChatThread(): Promise<AiResult<{ id: string }>> {
+  return runAi(async () => {
+    const userId = await requireUserId();
+    return { id: await createThread(userId) };
+  });
+}
+
+export async function deleteChatThread(formData: FormData) {
+  const id = formData.get("id");
+  if (typeof id !== "string") return;
+  const userId = await requireUserId();
+  await deleteThread(userId, id);
+  revalidatePath("/assistant");
 }
